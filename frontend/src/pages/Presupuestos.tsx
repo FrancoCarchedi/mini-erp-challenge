@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { EstadoBadge } from '../components/EstadoBadge'
 import { Alerta, Cargando, ErrorDeApi } from '../components/Mensajes'
 import { Vencimiento } from '../components/Vencimiento'
+import { useDuplicar } from '../hooks/useDuplicar'
 import { useEliminarPresupuesto } from '../hooks/useEliminarPresupuesto'
 import { useFacturar } from '../hooks/useFacturar'
 import { usePresupuestos } from '../hooks/usePresupuestos'
@@ -25,7 +26,29 @@ export function Presupuestos() {
   const facturar = useFacturar()
   const [aviso, setAviso] = useState<Aviso | null>(null)
   // Una acción a la vez, hasta que la grilla quede actualizada.
-  const ocupado = eliminar.isPending || facturar.isPending
+  const duplicar = useDuplicar()
+  const ocupado = eliminar.isPending || facturar.isPending || duplicar.isPending
+
+  function handleDuplicar({ id, numero }: Presupuesto) {
+    setAviso(null)
+    duplicar.mutate(id, {
+      onSuccess: (copia) =>
+        setAviso({
+          tipo: 'exito',
+          contenido: (
+            <>
+              Se creó el presupuesto{' '}
+              <Link className="font-semibold underline" to={`/presupuestos/${copia.id}`}>
+                N° {copia.numero}
+              </Link>{' '}
+              como copia del N° {numero}, con los precios actuales.
+            </>
+          ),
+        }),
+      onError: (error) =>
+        setAviso({ tipo: 'error', titulo: `No se pudo duplicar el presupuesto N° ${numero}`, error }),
+    })
+  }
 
   function handleFacturar({ id, numero, total }: Presupuesto) {
     if (!window.confirm(`¿Facturar el presupuesto N° ${numero} por ${formatearMoneda(total)}?`)) return
@@ -118,6 +141,14 @@ export function Presupuestos() {
                         onClick={() => handleFacturar(presupuesto)}
                       >
                         Facturar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={ocupado}
+                        onClick={() => handleDuplicar(presupuesto)}
+                      >
+                        Duplicar
                       </button>
                       <button
                         type="button"
