@@ -129,10 +129,19 @@ totales en vivo (subtotal, IVA, total) para que coincidan con el backend.
 
 ## Cómo usé IA
 
-<!--
-Para qué partes la usaste, qué le pediste, qué aceptaste y qué descartaste,
-y dónde se equivocó o te llevó por mal camino.
--->
+<!-- Borrador que se completa durante el trabajo. -->
+
+- **Para qué:** usé Claude Code para armar el plan (`PLAN-DE-ACCION.md`) a partir de leer el
+  código, y le pedí que lo ejecutara en orden.
+- **Cómo se controló:** cada bug se reprodujo antes del arreglo; los tests originales no se
+  tocaron; los flujos del README y la concurrencia se probaron por HTTP contra la API real.
+- **Dónde se equivocó:**
+  - Intentó editar archivos con un script de Python, que no está instalado; el comando siguió
+    de largo y corrió los tests sin los cambios.
+  - Agregó a un comando una línea sobrante que creaba y borraba un archivo en `/tmp`. Un
+    control de seguridad de Claude Code bloqueó el comando completo.
+  - Escribió un test de redondeo cuyo caso daba el mismo resultado con las dos formas de
+    calcular, así que no probaba nada. Se reemplazó por uno que sí las distingue.
 
 ## Qué haría con más tiempo / qué falta para producción
 

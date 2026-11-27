@@ -47,9 +47,9 @@ Si falta tiempo, se recorta en este orden: UI del reporte, tests extra, bug 7.
 
 ## Paso 0 — Preparación
 
-- [ ] `git checkout -b challenge/solucion`
-- [ ] `cd backend && dotnet test` y anotar la línea base. Se espera que fallen: alícuotas mixtas, sin stock y doble facturación.
-- [ ] Commit: `docs: plan de acción`
+- [x] `git checkout -b challenge/solucion`
+- [x] `cd backend && dotnet test` y anotar la línea base. Se espera que fallen: alícuotas mixtas, sin stock y doble facturación.
+- [x] Commit: `docs: plan de acción`
 
 ---
 
@@ -58,7 +58,7 @@ Si falta tiempo, se recorta en este orden: UI del reporte, tests extra, bug 7.
 Para cada bug: reproducir → arreglar → verificar → anotar en `NOTES.md` (qué pasaba, por qué,
 cómo se resolvió, cómo se verificó) → commit `fix: …`.
 
-### [ ] Bug 1 — IVA fijo al 21% (con test)
+### [x] Bug 1 — IVA fijo al 21% (con test)
 
 - **Dónde:** `backend/MiniErp.Core/Services/PresupuestoService.cs`, `CalcularTotales`, que hace `subtotal * 0.21m`.
 - **Fix:** calcular por línea y después sumar:
@@ -68,7 +68,7 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
 - **Reutilización:** extraer un helper estático de cálculo de línea y usarlo también en `PresupuestosController.MapToDto`, que hoy recalcula `SubtotalLinea` por su cuenta y sin redondear.
 - **Verificar:** `CalcularTotales_ConAlicuotasMixtas_CalculaIvaPorLinea` y flujo 2 del README (39.500 / 7.822,50 / 47.322,50).
 
-### [ ] Bug 4 — Facturación sin control de stock ni idempotencia (con test)
+### [x] Bug 4 — Facturación sin control de stock ni idempotencia (con test)
 
 - **Dónde:** `backend/MiniErp.Core/Services/FacturacionService.cs`. Descuenta stock sin validar y no controla si ya se facturó.
 - **Fix**, en este orden y validando todo **antes de modificar datos**:
@@ -79,13 +79,13 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
 - **Cuidado:** `Borrador` tiene que poder facturarse, porque todo presupuesto nuevo nace así y no hay flujo de aprobación. `Aprobado` también (lo usan los tests).
 - **Verificar:** `Facturar_SinStockSuficiente_…`, `Facturar_DosVeces_…` y flujo 5 del README.
 
-### [ ] Bug 2 — La lista no muestra los presupuestos nuevos (sin test)
+### [x] Bug 2 — La lista no muestra los presupuestos nuevos (sin test)
 
 - **Por qué:** `PresupuestoService.ListarAsync` filtra `Estado != Borrador` y todo presupuesto se crea como `Borrador`.
 - **Fix:** quitar el filtro.
 - **Verificar:** flujo 1 del README.
 
-### [ ] Bug 3 — La numeración colisiona después de borrar (sin test)
+### [x] Bug 3 — La numeración colisiona después de borrar (sin test)
 
 - **Por qué:** `NumeracionService.ProximoNumeroPresupuestoAsync` usa `Count() + 1`. Ejemplo: se crean el 1 y el 2, se borra el 1 y el siguiente vuelve a ser 2, que ya existe.
 - **Fix:**
@@ -98,7 +98,7 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
 - **Importante:** como se usa `EnsureCreated`, hay que borrar el `minierp.db` local para que se genere el esquema nuevo. Documentarlo en `NOTES.md`.
 - **Verificar:** flujo 3 del README.
 
-### [ ] Bug 5 — No se validan los datos de entrada (sin test)
+### [x] Bug 5 — No se validan los datos de entrada (sin test)
 
 - **Por qué:** `POST /api/presupuestos` no controla cantidad ≤ 0, descuento fuera de rango, lista de ítems vacía, validez ≤ 0 ni cliente inexistente.
 - **Fix en dos capas:**
@@ -106,7 +106,7 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
   - **Servicio** (`CrearAsync`): las mismas reglas con `InvalidOperationException`, más la existencia del cliente.
 - **Verificar:** flujo 4 del README.
 
-### [ ] Bug 6 — Borrar un presupuesto facturado borraría su factura (sin test, de datos)
+### [x] Bug 6 — Borrar un presupuesto facturado borraría su factura (sin test, de datos)
 
 - **Por qué:** `Factura.PresupuestoId` es una FK requerida, así que EF aplica borrado en cascada por defecto. Se perdería la factura con el stock ya descontado.
 - **Fix:**
@@ -115,7 +115,7 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
   - 404 si el presupuesto no existe.
 - **Verificar:** facturar, intentar borrar y comprobar que la factura sigue en `GET /api/facturas`.
 
-### [ ] Bug 7 — Fechas sin zona horaria (menor, a confirmar)
+### [x] Bug 7 — Fechas sin zona horaria (menor, a confirmar)
 
 - **Por qué:** SQLite devuelve los `DateTime` con `Kind=Unspecified`. El JSON saldría sin `Z` y el navegador lo tomaría como hora local (3 h de corrimiento).
 - **Condición previa (revisada en el código):** el fix solo es válido si los datos se guardaron en UTC. Los únicos campos persistidos son `Presupuesto.Fecha` y `Factura.Fecha`, y la API los asigna con `DateTime.UtcNow` (`PresupuestoService.CrearAsync` y `FacturacionService.FacturarAsync`). Los requests no reciben fechas. No cubre una base editada a mano.
@@ -129,10 +129,10 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
   - Las fechas de `GET /api/presupuestos` y `GET /api/facturas` terminan en `Z`.
   - Test en un archivo nuevo (`FechasUtcTests`): guardar, limpiar el `ChangeTracker`, releer y comprobar `Kind=Utc` con el mismo instante.
 
-### [ ] Cierre de la Parte A
+### [x] Cierre de la Parte A
 
-- [ ] `dotnet test` en verde.
-- [ ] Recorrer los 5 flujos del README en Swagger.
+- [x] `dotnet test` en verde.
+- [x] Recorrer los 5 flujos del README en Swagger. *(Hecho por HTTP con un script, no desde la UI de Swagger.)*
 
 ---
 
@@ -216,7 +216,7 @@ Commits sugeridos: `feat(front): scaffold`, `feat(front): grilla`, `feat(front):
 - Validar `desde ≤ hasta` y `top` entre 1 y 100.
 - **UI:** página Reporte con rango de fechas y N. Envía las fechas como `yyyy-MM-dd`, tal como las entrega el input, sin pasarlas por `Date` ni `toISOString()`.
 
-### [ ] Tests propios del backend
+### [x] Tests propios del backend
 
 Archivos **nuevos** en `backend/MiniErp.Tests/`, usando `TestDbFactory`:
 
