@@ -24,6 +24,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Factura>().HasIndex(f => f.Numero).IsUnique();
         modelBuilder.Entity<Factura>().HasIndex(f => f.PresupuestoId).IsUnique();
 
+        // Por defecto EF borraria la factura en cascada junto con su presupuesto.
+        modelBuilder.Entity<Factura>()
+            .HasOne(f => f.Presupuesto)
+            .WithMany()
+            .HasForeignKey(f => f.PresupuestoId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<Articulo>().Property(a => a.PrecioUnitario).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Articulo>().Property(a => a.AlicuotaIva).HasColumnType("decimal(5,2)");
 

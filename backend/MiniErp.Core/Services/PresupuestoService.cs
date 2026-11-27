@@ -106,13 +106,18 @@ public class PresupuestoService
             .ToListAsync();
     }
 
-    public async Task EliminarAsync(int id)
+    /// <summary>Devuelve false si el presupuesto no existe.</summary>
+    public async Task<bool> EliminarAsync(int id)
     {
         var presupuesto = await _db.Presupuestos.FindAsync(id);
-        if (presupuesto is not null)
-        {
-            _db.Presupuestos.Remove(presupuesto);
-            await _db.SaveChangesAsync();
-        }
+        if (presupuesto is null) return false;
+
+        if (presupuesto.Estado == EstadoPresupuesto.Facturado ||
+            await _db.Facturas.AnyAsync(f => f.PresupuestoId == id))
+            throw new InvalidOperationException("El presupuesto ya fue facturado y no se puede eliminar.");
+
+        _db.Presupuestos.Remove(presupuesto);
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

@@ -57,8 +57,14 @@ public class PresupuestosController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        await _service.EliminarAsync(id);
-        return NoContent();
+        try
+        {
+            return await _service.EliminarAsync(id) ? NoContent() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     private PresupuestoDto MapToDto(Presupuesto p)

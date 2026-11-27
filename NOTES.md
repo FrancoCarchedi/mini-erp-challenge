@@ -71,6 +71,17 @@ porque tenían tests.)*
   README.
 - **Verificación:** flujo 4 del README.
 
+### 6. Borrar un presupuesto facturado borraba su factura (sin test, de datos)
+
+- **Qué pasaba:** el `DELETE` respondía 204 y la factura desaparecía de `GET /api/facturas`,
+  con el stock ya descontado. Además, borrar un id inexistente también daba 204.
+- **Por qué:** `Factura.PresupuestoId` es una FK requerida, así que EF aplica borrado en
+  cascada por defecto, y `EliminarAsync` no controlaba nada.
+- **Arreglo:** el servicio rechaza los facturados (400 con `{ error }`), la relación usa
+  `DeleteBehavior.Restrict` como defensa en la base (también requiere regenerar el `.db`) y un
+  id inexistente da 404.
+- **Verificación:** facturar, intentar borrar y comprobar que la factura sigue en la lista.
+
 ## Decisiones del cliente React
 
 <!--
