@@ -4,19 +4,42 @@ import { EstadoBadge } from '../components/EstadoBadge'
 import { Alerta, Cargando, ErrorDeApi } from '../components/Mensajes'
 import { Vencimiento } from '../components/Vencimiento'
 import { useEliminarPresupuesto } from '../hooks/useEliminarPresupuesto'
+import { useFacturar } from '../hooks/useFacturar'
 import { usePresupuestos } from '../hooks/usePresupuestos'
 import { formatearFecha, formatearMoneda } from '../lib/format'
-import type { Presupuesto } from '../types/api'
+import type { EstadoPresupuesto, Presupuesto } from '../types/api'
 
 type Aviso = { tipo: 'exito'; contenido: ReactNode } | { tipo: 'error'; titulo: string; error: unknown }
 
 const precargarAlta = () => void import('./NuevoPresupuesto')
 
+// Los vencidos no se deshabilitan: el backend explica por qué no se pueden facturar.
+const MOTIVO_NO_FACTURABLE: Partial<Record<EstadoPresupuesto, string>> = {
+  Facturado: 'Ya fue facturado',
+  Rechazado: 'Está rechazado',
+}
+
 export function Presupuestos() {
   const { data: presupuestos, isPending, error } = usePresupuestos()
   const eliminar = useEliminarPresupuesto()
+  const facturar = useFacturar()
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const ocupado = eliminar.isPending
+  // Una acción a la vez, hasta que la grilla quede actualizada.
+  const ocupado = eliminar.isPending || facturar.isPending
+
+  function handleFacturar({ id, numero, total }: Presupuesto) {
+    if (!window.confirm(`¿Facturar el presupuesto N° ${numero} por ${formatearMoneda(total)}?`)) return
+    setAviso(null)
+    facturar.mutate(id, {
+      onSuccess: (factura) =>
+        setAviso({
+          tipo: 'exito',
+          contenido: `Se generó la factura N° ${factura.numero} del presupuesto N° ${numero}.`,
+        }),
+      onError: (error) =>
+        setAviso({ tipo: 'error', titulo: `No se pudo facturar el presupuesto N° ${numero}`, error }),
+    })
+  }
 
   function handleEliminar({ id, numero }: Presupuesto) {
     if (!window.confirm(`¿Eliminar el presupuesto N° ${numero}?`)) return
@@ -87,6 +110,15 @@ export function Presupuestos() {
                       <Link className="btn" to={`/presupuestos/${presupuesto.id}`}>
                         Ver
                       </Link>
+                      <button
+                        type="button"
+                        className="btn btn-primario"
+                        disabled={ocupado || MOTIVO_NO_FACTURABLE[presupuesto.estado] !== undefined}
+                        title={MOTIVO_NO_FACTURABLE[presupuesto.estado]}
+                        onClick={() => handleFacturar(presupuesto)}
+                      >
+                        Facturar
+                      </button>
                       <button
                         type="button"
                         className="btn btn-peligro"
