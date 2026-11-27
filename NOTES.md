@@ -82,6 +82,19 @@ porque tenían tests.)*
   id inexistente da 404.
 - **Verificación:** facturar, intentar borrar y comprobar que la factura sigue en la lista.
 
+### 7. Las fechas salían sin zona horaria (menor, sin test)
+
+- **Qué pasaba:** la respuesta del `POST` traía la fecha con `Z` (la entidad en memoria), pero
+  un `GET` posterior la devolvía sin `Z`. El navegador la tomaba como hora local: 3 horas de
+  corrimiento en Argentina.
+- **Por qué:** SQLite no guarda el `Kind` y EF devuelve `DateTime` como `Unspecified`.
+- **Arreglo:** `UtcDateTimeConverter` como convención global (`ConfigureConventions`), así
+  cubre también las fechas futuras. Es válido porque los datos ya se guardaban en UTC (la API
+  asigna `Fecha` con `DateTime.UtcNow` y no recibe fechas en los requests); no cubre una base
+  editada a mano. Descarté un conversor de JSON: solo corregía la salida y la lógica del
+  backend habría seguido recibiendo `Unspecified`.
+- **Verificación:** `FechasUtcTests` y las fechas de los `GET`, que terminan en `Z`.
+
 ## Decisiones del cliente React
 
 <!--

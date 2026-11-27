@@ -14,6 +14,11 @@ public class AppDbContext : DbContext
     public DbSet<Factura> Facturas => Set<Factura>();
     public DbSet<Secuencia> Secuencias => Set<Secuencia>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Secuencia>().HasKey(s => s.Nombre);
