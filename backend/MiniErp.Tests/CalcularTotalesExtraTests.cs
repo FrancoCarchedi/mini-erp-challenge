@@ -44,6 +44,15 @@ public class CalcularTotalesExtraTests
     }
 
     [Fact]
+    public void ImportesGrandes_DanLoMismoQueElCliente()
+    {
+        // El mismo caso esta en el cliente (totales.test.ts).
+        var t = Calcular(Linea(999_999, 220000.01m, 21m, 33.33m));
+
+        Assert.Equal(146673859992.99m, t.Subtotal);
+    }
+
+    [Fact]
     public void ElIvaSeCalculaSobreElSubtotalYaRedondeado()
     {
         // Subtotal 0,115 -> 0,12; IVA 0,12 x 21% = 0,0252 -> 0,03.
