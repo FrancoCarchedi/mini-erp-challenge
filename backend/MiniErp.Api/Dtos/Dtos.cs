@@ -1,9 +1,23 @@
+using System.ComponentModel.DataAnnotations;
+using MiniErp.Core.Services;
+
 namespace MiniErp.Api.Dtos;
 
 // ---- Requests ----
-public record CrearPresupuestoItemDto(int ArticuloId, int Cantidad, decimal DescuentoPct);
+public record CrearPresupuestoItemDto(
+    int ArticuloId,
+    [Range(1, ReglasPresupuesto.CantidadMaxima, ErrorMessage = "La cantidad debe estar entre {1} y {2}.")]
+    int Cantidad,
+    [Range(0d, 100d, ErrorMessage = "El descuento debe estar entre {1} y {2}.")]
+    decimal DescuentoPct);
 
-public record CrearPresupuestoRequest(int ClienteId, int ValidezDias, List<CrearPresupuestoItemDto> Items);
+public record CrearPresupuestoRequest(
+    int ClienteId,
+    [Range(1, ReglasPresupuesto.ValidezMaximaDias, ErrorMessage = "La validez debe estar entre {1} y {2} dias.")]
+    int ValidezDias,
+    [Required(ErrorMessage = "El presupuesto necesita al menos un item.")]
+    [MinLength(1, ErrorMessage = "El presupuesto necesita al menos un item.")]
+    List<CrearPresupuestoItemDto> Items);
 
 // ---- Responses ----
 public record ArticuloDto(

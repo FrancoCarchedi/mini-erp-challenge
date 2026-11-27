@@ -32,6 +32,11 @@ public class PresupuestoService
 
     public async Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
     {
+        ValidarDatos(validezDias, items);
+
+        if (!await _db.Clientes.AnyAsync(c => c.Id == clienteId))
+            throw new InvalidOperationException($"El cliente {clienteId} no existe.");
+
         foreach (var item in items)
         {
             var articulo = await _db.Articulos.FirstOrDefaultAsync(a => a.Id == item.ArticuloId)
@@ -59,6 +64,27 @@ public class PresupuestoService
         await _db.SaveChangesAsync();
         await transaccion.CommitAsync();
         return presupuesto;
+    }
+
+    // Las mismas reglas que los DTOs, para que el servicio no dependa de la API.
+    private static void ValidarDatos(int validezDias, List<PresupuestoItem> items)
+    {
+        if (validezDias < 1 || validezDias > ReglasPresupuesto.ValidezMaximaDias)
+            throw new InvalidOperationException(
+                $"La validez debe estar entre 1 y {ReglasPresupuesto.ValidezMaximaDias} dias.");
+
+        if (items.Count == 0)
+            throw new InvalidOperationException("El presupuesto necesita al menos un item.");
+
+        if (items.Any(i => i.Cantidad < 1 || i.Cantidad > ReglasPresupuesto.CantidadMaxima))
+            throw new InvalidOperationException(
+                $"La cantidad debe estar entre 1 y {ReglasPresupuesto.CantidadMaxima}.");
+
+        if (items.Any(i => i.DescuentoPct < 0m || i.DescuentoPct > 100m))
+            throw new InvalidOperationException("El descuento debe estar entre 0 y 100.");
+
+        if (items.Any(i => decimal.Round(i.DescuentoPct, 2) != i.DescuentoPct))
+            throw new InvalidOperationException("El descuento admite hasta 2 decimales.");
     }
 
     public async Task<Presupuesto?> ObtenerAsync(int id)

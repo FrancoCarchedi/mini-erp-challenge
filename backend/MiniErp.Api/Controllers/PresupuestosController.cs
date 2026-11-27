@@ -31,6 +31,10 @@ public class PresupuestosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<PresupuestoDto>> Crear([FromBody] CrearPresupuestoRequest request)
     {
+        // Los DataAnnotations no cubren un elemento nulo dentro de la lista.
+        if (request.Items.Any(i => i is null))
+            return BadRequest(new { error = "La lista de items tiene elementos vacios." });
+
         var items = request.Items.Select(i => new PresupuestoItem
         {
             ArticuloId = i.ArticuloId,

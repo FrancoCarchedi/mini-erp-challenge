@@ -58,6 +58,19 @@ porque tenían tests.)*
   levantar la API.
 - **Verificación:** flujo 3 del README.
 
+### 5. No se validaban los datos de entrada (sin test)
+
+- **Qué pasaba:** se aceptaban cantidades 0 o negativas, descuentos de 150%, validez negativa y
+  presupuestos sin ítems; un cliente inexistente terminaba en un 500 (error de FK).
+- **Por qué:** no había ninguna validación, ni en los DTOs ni en el servicio.
+- **Arreglo, en dos capas:** DataAnnotations en los DTOs (`[ApiController]` responde 400 solo)
+  y las mismas reglas en `CrearAsync`, más la existencia del cliente, para que el servicio no
+  dependa de la API. Además: descuento con hasta 2 decimales (la columna es `decimal(5,2)` y el
+  total en vivo del cliente trabaja en centésimos) y topes técnicos de cantidad (1.000.000) y
+  validez (3650 días) para evitar desbordes. Estos topes no son una regla de negocio del
+  README.
+- **Verificación:** flujo 4 del README.
+
 ## Decisiones del cliente React
 
 <!--
