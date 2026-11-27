@@ -33,7 +33,9 @@ porque tenían tests.)*
   artículos que no alcanzan. `Borrador` se puede facturar porque todo presupuesto nace así y no
   hay flujo de aprobación. Todo corre en una transacción abierta **antes de leer**: en SQLite
   (`BEGIN IMMEDIATE`) eso serializa las facturaciones simultáneas.
-- **Verificación:** `Facturar_SinStockSuficiente_…` y `Facturar_DosVeces_…`.
+- **Verificación:** `Facturar_SinStockSuficiente_…` y `Facturar_DosVeces_…`. Además, contra la
+  API: 8 `POST` simultáneos sobre el mismo presupuesto (entra uno solo) y 6 presupuestos
+  compitiendo por 3 unidades (se facturan exactamente 3 y el stock queda en 0).
 
 ### 2. La lista no mostraba los presupuestos nuevos (sin test)
 
