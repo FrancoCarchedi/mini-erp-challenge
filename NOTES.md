@@ -35,6 +35,14 @@ porque tenían tests.)*
   (`BEGIN IMMEDIATE`) eso serializa las facturaciones simultáneas.
 - **Verificación:** `Facturar_SinStockSuficiente_…` y `Facturar_DosVeces_…`.
 
+### 2. La lista no mostraba los presupuestos nuevos (sin test)
+
+- **Qué pasaba:** después de un `POST`, `GET /api/presupuestos` devolvía `[]`.
+- **Por qué:** `ListarAsync` filtraba `Estado != Borrador`, y todo presupuesto se crea como
+  `Borrador`.
+- **Arreglo:** se quitó el filtro.
+- **Verificación:** flujo 1 del README.
+
 ## Decisiones del cliente React
 
 <!--

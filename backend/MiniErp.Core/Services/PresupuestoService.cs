@@ -72,7 +72,6 @@ public class PresupuestoService
             .Include(p => p.Cliente)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Articulo)
-            .Where(p => p.Estado != EstadoPresupuesto.Borrador)
             .OrderByDescending(p => p.Numero)
             .ToListAsync();
     }
