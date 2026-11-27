@@ -15,7 +15,8 @@ public class NumeracionService
 
     public async Task<int> ProximoNumeroPresupuestoAsync()
     {
-        var maximoUsado = await _db.Presupuestos.MaxAsync(p => (int?)p.Numero) ?? 0;
+        // Los eliminados tambien cuentan: su numero sigue ocupado.
+        var maximoUsado = await _db.Presupuestos.IgnoreQueryFilters().MaxAsync(p => (int?)p.Numero) ?? 0;
         return await AvanzarAsync("Presupuesto", maximoUsado);
     }
 

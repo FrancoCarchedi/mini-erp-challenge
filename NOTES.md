@@ -15,7 +15,8 @@ npm run lint
 ```
 
 - **Antes del primer arranque:** si existe un `backend/MiniErp.Api/minierp.db` anterior, borralo
-  junto con `-shm` y `-wal`. El esquema cambió (bugs 3 y 6) y `EnsureCreated` no lo actualiza.
+  junto con `-shm` y `-wal` (si están). El esquema cambió (bugs 3 y 6 y la baja lógica) y
+  `EnsureCreated` no lo actualiza: con una base vieja, la API falla al consultar presupuestos.
 - El cliente usa `http://localhost:5080` por defecto; para cambiarlo, copiá
   `frontend/.env.example` a `frontend/.env`.
 - Vite está fijado al puerto 5173 (`strictPort`), el único que la API permite por CORS.
@@ -103,6 +104,8 @@ porque tenían tests.)*
   `DeleteBehavior.Restrict` como defensa en la base (también requiere regenerar el `.db`) y un
   id inexistente da 404.
 - **Verificación:** facturar, intentar borrar y comprobar que la factura sigue en la lista.
+- **Después:** el `DELETE` pasó a ser una baja lógica (ver *Mejora: baja lógica*). El rechazo
+  de los facturados se mantiene y en la base lo refuerza además un `CHECK`.
 
 ### 7. Las fechas salían sin zona horaria (menor, sin test)
 
@@ -116,6 +119,42 @@ porque tenían tests.)*
   editada a mano. Descarté un conversor de JSON: solo corregía la salida y la lógica del
   backend habría seguido recibiendo `Unspecified`.
 - **Verificación:** `FechasUtcTests` y las fechas de los `GET`, que terminan en `Z`.
+
+## Mejora: baja lógica (soft delete) al eliminar presupuestos
+
+No es uno de los bugs plantados: es una mejora que surgió al probar los flujos del README.
+
+- **Qué pasaba:** `DELETE /api/presupuestos/{id}` borraba físicamente el presupuesto y sus
+  ítems.
+- **Por qué cambiarlo:** en un ERP no conviene perder la referencia. No quedaba registro de qué
+  presupuesto se había eliminado ni cuándo, y en la numeración quedaba un hueco sin
+  explicación.
+- **Qué hace ahora:** el `DELETE` completa `Presupuesto.EliminadoEn` (fecha UTC; `null` =
+  vigente). La fila y sus ítems quedan en la base. Se usa una fecha y no un booleano para
+  saber además cuándo se eliminó.
+- **Contrato de la API sin cambios** (204; 404 si no existe; 400 si está facturado), así que el
+  cliente no se modificó. Para la API, un eliminado **no existe**: no se lista, y obtenerlo,
+  duplicarlo o volver a eliminarlo da 404; facturarlo da 400 sin tocar el stock.
+- **Filtro global de EF** (`HasQueryFilter`): se eligió en lugar de un `Where` en cada
+  consulta para que una consulta nueva no muestre eliminados por olvido. Para verlos hay que
+  pedirlo con `IgnoreQueryFilters()`.
+- **Numeración:** el número de un eliminado sigue ocupado (el índice UNIQUE lo incluye). El
+  máximo que usa la secuencia como respaldo ahora ignora el filtro, para contar los eliminados.
+- **Concurrencia:** con borrado físico, la FK `Restrict` impedía borrar un facturado. Una baja
+  lógica es un `UPDATE` y la FK no actúa. Por eso `EliminarAsync` abre la transacción **antes
+  de leer** (como `FacturarAsync`), y un `CHECK` en la base impide que un `Facturado` quede
+  eliminado.
+- **Advertencia de EF silenciada:** EF avisa que `Factura` y `PresupuestoItem` requieren un
+  presupuesto que el filtro puede ocultar (evento 10622). Acá no puede pasar: un facturado no
+  se elimina y los ítems solo se consultan a través de su presupuesto. No se le puso filtro a
+  `Factura` porque podría ocultar facturas. El motivo está comentado en `AppDbContext`; si se
+  agrega otra relación con `Presupuesto`, hay que revisarlo.
+- **Alcance:** solo presupuestos, que es lo único que la API permite eliminar. No se agregó
+  restaurar ni listar eliminados.
+- **⚠️ Esquema:** columna y restricción nuevas; hay que regenerar el `.db`.
+- **Verificación:** `EliminacionTests` (6 tests). Contra la API: la fila y el ítem siguen en la
+  base, y 40 pares simultáneos de eliminar y facturar el mismo presupuesto dieron siempre un
+  solo ganador (18 la baja y 22 la factura), sin facturas de presupuestos eliminados.
 
 ## Funcionalidades nuevas del backend
 
@@ -212,8 +251,8 @@ Respecto de la estructura prevista en el plan, la tabla genérica quedó como un
 ## Qué hice y qué dejé afuera
 
 **Hecho:** las partes A (7 bugs), B (grilla, alta con totales en vivo y facturar) y C completa
-(duplicar y reporte, con endpoint y UI, y tests propios). Además, detalle de presupuesto y
-lista de facturas.
+(duplicar y reporte, con endpoint y UI, y tests propios). Además, detalle de presupuesto,
+lista de facturas y baja lógica al eliminar presupuestos.
 
 **Priorización:** primero los bugs con test, después el resto de los bugs (el cliente depende
 de que la API sea correcta), el cliente obligatorio y al final los stretch. Hubo un cambio de
@@ -222,14 +261,15 @@ React, que hacía falta antes de escribir el cliente.
 
 **Tiempo:** la consigna sugiere 3 horas. Según los commits, la ejecución con IA fue de 14:47
 a 15:07 más la verificación final, con una pausa en el medio para instalar la skill. No
-incluye la lectura previa del código ni el armado del plan.
+incluye la lectura previa del código ni el armado del plan, ni la prueba manual y la baja
+lógica, que vinieron después.
 
 **Quedó afuera:** lo listado en la última sección. No hay tests de componentes ni e2e en el
 repo; el recorrido en navegador se hizo con un script descartable.
 
 ### Verificación
 
-- Backend: 46 tests en verde (los 6 originales, sin modificar, y 40 nuevos).
+- Backend: 52 tests en verde (los 6 originales, sin modificar, y 46 nuevos).
 - Cliente: 43 tests en verde; `build` y `lint` sin errores.
 - Por HTTP, sobre una base nueva: los 5 flujos del README, los bugs sin test, duplicar,
   reporte, CORS y concurrencia. No usé la interfaz de Swagger; sí comprobé que publica los
@@ -238,6 +278,8 @@ repo; el recorrido en navegador se hizo con un script descartable.
   vencido y ya facturado, duplicar con precio actualizado, eliminar, facturas, reporte, 400 de
   la API y API caída), sin errores de consola. Para probar "vencido" y "precio actualizado"
   edité la base de prueba, porque la API no permite generar esos casos.
+- Tras la baja lógica se repitieron los tests del backend, las pruebas por HTTP y el recorrido
+  en navegador.
 
 ## Cómo usé IA
 
@@ -256,6 +298,12 @@ repo; el recorrido en navegador se hizo con un script descartable.
 - **Cómo se controló:** cada bug se reprodujo antes del arreglo; los tests originales no se
   tocaron; los flujos, la concurrencia, la paridad de totales y la UI se probaron contra la API
   real.
+- **Qué corregí con mi criterio:** al probar a mano los flujos del README vi que la numeración
+  tras borrar funcionaba, pero que el `DELETE` borraba físicamente la fila. Ni el plan ni la
+  implementación de la IA lo habían cuestionado: el arreglo del bug 6 solo protegía los
+  facturados. Pedí que fuera un soft delete para no perder la referencia. Al implementarlo, la
+  IA señaló que así la FK dejaba de proteger a los facturados y sumó la transacción y el
+  `CHECK`.
 - **Límites de la herramienta:** el modo automático de Claude Code bloqueó el comando que iba
   a consultar las skills de Vercel; la skill la instalé yo y la IA revisó los archivos antes
   de usarla.
@@ -275,6 +323,8 @@ repo; el recorrido en navegador se hizo con un script descartable.
 
 - **Migraciones de EF** en lugar de `EnsureCreated`, para cambiar el esquema sin borrar datos.
 - **Autenticación y autorización**, y auditoría de quién factura o elimina.
+- **Eliminados:** hoy solo se pueden ver en la base. Faltaría listarlos y restaurarlos (con
+  permisos) y guardar quién los eliminó.
 - **Concurrencia del stock** en un motor con escrituras simultáneas: la serialización actual
   depende del lock de SQLite. En otro motor haría falta un token de concurrencia o un `UPDATE`
   condicional, y revisar el SQL de la secuencia.

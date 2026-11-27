@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using MiniErp.Core.Models;
 
 namespace MiniErp.Core.Data;
@@ -13,6 +14,16 @@ public class AppDbContext : DbContext
     public DbSet<PresupuestoItem> PresupuestoItems => Set<PresupuestoItem>();
     public DbSet<Factura> Facturas => Set<Factura>();
     public DbSet<Secuencia> Secuencias => Set<Secuencia>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // EF avisa porque Factura y PresupuestoItem requieren un Presupuesto que el
+        // filtro de baja logica puede ocultar. Aca no pasa: la base impide eliminar un
+        // facturado y los items solo se consultan a traves de su presupuesto. Si se
+        // agrega otra relacion con Presupuesto, hay que volver a revisar este punto.
+        optionsBuilder.ConfigureWarnings(avisos => avisos.Ignore(
+            CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+    }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -29,7 +40,17 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Factura>().HasIndex(f => f.Numero).IsUnique();
         modelBuilder.Entity<Factura>().HasIndex(f => f.PresupuestoId).IsUnique();
 
-        // Por defecto EF borraria la factura en cascada junto con su presupuesto.
+        // Baja logica: los eliminados no aparecen en ninguna consulta, salvo que se
+        // pida con IgnoreQueryFilters().
+        modelBuilder.Entity<Presupuesto>().HasQueryFilter(p => p.EliminadoEn == null);
+
+        // Defensa en la base: un presupuesto facturado no se puede eliminar. La FK no
+        // alcanza, porque una baja logica es un UPDATE.
+        modelBuilder.Entity<Presupuesto>().ToTable(tabla => tabla.HasCheckConstraint(
+            "CK_Presupuestos_FacturadoNoSeElimina",
+            $"EliminadoEn IS NULL OR Estado <> {(int)EstadoPresupuesto.Facturado}"));
+
+        // Ante un borrado fisico, EF borraria por defecto la factura en cascada.
         modelBuilder.Entity<Factura>()
             .HasOne(f => f.Presupuesto)
             .WithMany()

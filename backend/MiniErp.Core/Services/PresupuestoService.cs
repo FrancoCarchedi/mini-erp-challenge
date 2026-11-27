@@ -132,18 +132,26 @@ public class PresupuestoService
             .ToListAsync();
     }
 
-    /// <summary>Devuelve false si el presupuesto no existe.</summary>
+    /// <summary>
+    /// Baja logica: marca el presupuesto como eliminado y conserva la fila y sus items.
+    /// Devuelve false si no existe o ya estaba eliminado.
+    /// </summary>
     public async Task<bool> EliminarAsync(int id)
     {
-        var presupuesto = await _db.Presupuestos.FindAsync(id);
+        // Se abre antes de leer para que no se pueda facturar entre el control y la baja.
+        await using var transaccion = await _db.Database.BeginTransactionAsync();
+
+        // No se usa FindAsync: devolveria una entidad ya eliminada que siga en memoria.
+        var presupuesto = await _db.Presupuestos.FirstOrDefaultAsync(p => p.Id == id);
         if (presupuesto is null) return false;
 
         if (presupuesto.Estado == EstadoPresupuesto.Facturado ||
             await _db.Facturas.AnyAsync(f => f.PresupuestoId == id))
             throw new InvalidOperationException("El presupuesto ya fue facturado y no se puede eliminar.");
 
-        _db.Presupuestos.Remove(presupuesto);
+        presupuesto.EliminadoEn = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await transaccion.CommitAsync();
         return true;
     }
 }
