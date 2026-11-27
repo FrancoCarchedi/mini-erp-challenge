@@ -73,8 +73,8 @@ public class FacturacionService
 
     private static void ValidarVigencia(Presupuesto presupuesto)
     {
-        var vencimiento = presupuesto.Fecha.AddDays(presupuesto.ValidezDias);
-        if (DateTime.UtcNow > vencimiento)
+        // El dia del vencimiento todavia se puede facturar.
+        if (ZonaArgentina.Hoy() > presupuesto.FechaVencimiento)
             throw new InvalidOperationException("El presupuesto esta vencido y no se puede facturar.");
     }
 

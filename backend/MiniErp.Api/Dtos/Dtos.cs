@@ -11,10 +11,12 @@ public record CrearPresupuestoItemDto(
     [Range(0d, 100d, ErrorMessage = "El descuento debe estar entre {1} y {2}.")]
     decimal DescuentoPct);
 
+/// <summary>El vencimiento se indica con uno solo de los dos: FechaVencimiento o ValidezDias.</summary>
 public record CrearPresupuestoRequest(
     int ClienteId,
     [Range(1, ReglasPresupuesto.ValidezMaximaDias, ErrorMessage = "La validez debe estar entre {1} y {2} dias.")]
-    int ValidezDias,
+    int? ValidezDias,
+    DateOnly? FechaVencimiento,
     [Required(ErrorMessage = "El presupuesto necesita al menos un item.")]
     [MinLength(1, ErrorMessage = "El presupuesto necesita al menos un item.")]
     List<CrearPresupuestoItemDto> Items);
@@ -46,6 +48,7 @@ public record PresupuestoDto(
     string ClienteRazonSocial,
     string Estado,
     int ValidezDias,
+    DateOnly FechaVencimiento,
     List<PresupuestoItemDto> Items,
     decimal Subtotal,
     decimal Iva,

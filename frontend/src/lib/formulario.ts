@@ -1,5 +1,6 @@
 import type { Articulo, CrearPresupuestoRequest } from '../types/api'
 import type { LineaCalculo } from './totales'
+import { sumarDias } from './vencimiento'
 
 // Los mismos límites que el backend (ReglasPresupuesto.cs).
 export const CANTIDAD_MAXIMA = 1_000_000
@@ -60,7 +61,11 @@ export function agregarArticulo(lineas: LineaForm[], articulo: Articulo): LineaF
 
 type Resultado = { ok: true; request: CrearPresupuestoRequest } | { ok: false; errores: string[] }
 
-export function armarRequest(clienteId: string, validez: string, lineas: LineaForm[]): Resultado {
+/**
+ * El usuario elige la validez en días; a la API se le envía la fecha de vencimiento,
+ * contada desde `hoy` (yyyy-MM-dd en Argentina).
+ */
+export function armarRequest(clienteId: string, validez: string, lineas: LineaForm[], hoy: string): Resultado {
   const errores: string[] = []
 
   const cliente = Number(clienteId)
@@ -82,5 +87,5 @@ export function armarRequest(clienteId: string, validez: string, lineas: LineaFo
   }
 
   if (errores.length > 0 || validezDias === null) return { ok: false, errores }
-  return { ok: true, request: { clienteId: cliente, validezDias, items } }
+  return { ok: true, request: { clienteId: cliente, fechaVencimiento: sumarDias(hoy, validezDias), items } }
 }

@@ -30,9 +30,34 @@ public class PresupuestoService
         return new Totales(subtotal, iva, total);
     }
 
-    public async Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
+    /// <summary>Crea un presupuesto que vence <paramref name="validezDias"/> dias despues de hoy.</summary>
+    public Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
     {
-        ValidarDatos(validezDias, items);
+        if (validezDias < 1 || validezDias > ReglasPresupuesto.ValidezMaximaDias)
+            throw new InvalidOperationException(
+                $"La validez debe estar entre 1 y {ReglasPresupuesto.ValidezMaximaDias} dias.");
+
+        return GuardarNuevoAsync(clienteId, DateTime.UtcNow, validezDias, items);
+    }
+
+    /// <summary>Crea un presupuesto que se puede facturar hasta ese dia inclusive.</summary>
+    public Task<Presupuesto> CrearAsync(int clienteId, DateOnly fechaVencimiento, List<PresupuestoItem> items)
+    {
+        // El mismo instante define "hoy" y la fecha que se guarda.
+        var ahora = DateTime.UtcNow;
+        var dias = fechaVencimiento.DayNumber - ZonaArgentina.DiaDe(ahora).DayNumber;
+
+        if (dias < 1 || dias > ReglasPresupuesto.ValidezMaximaDias)
+            throw new InvalidOperationException(
+                $"La fecha de vencimiento debe ser posterior a hoy y no superar los {ReglasPresupuesto.ValidezMaximaDias} dias.");
+
+        return GuardarNuevoAsync(clienteId, ahora, dias, items);
+    }
+
+    private async Task<Presupuesto> GuardarNuevoAsync(
+        int clienteId, DateTime ahora, int validezDias, List<PresupuestoItem> items)
+    {
+        ValidarItems(items);
 
         if (!await _db.Clientes.AnyAsync(c => c.Id == clienteId))
             throw new InvalidOperationException($"El cliente {clienteId} no existe.");
@@ -53,10 +78,11 @@ public class PresupuestoService
         var presupuesto = new Presupuesto
         {
             Numero = await _numeracion.ProximoNumeroPresupuestoAsync(),
-            Fecha = DateTime.UtcNow,
+            Fecha = ahora,
             ClienteId = clienteId,
             Estado = EstadoPresupuesto.Borrador,
             ValidezDias = validezDias,
+            FechaVencimiento = ZonaArgentina.DiaDe(ahora).AddDays(validezDias),
             Items = items
         };
 
@@ -89,16 +115,20 @@ public class PresupuestoService
             })
             .ToList();
 
-        return await CrearAsync(original.ClienteId, original.ValidezDias, items);
+        return await CrearAsync(original.ClienteId, PlazoOtorgado(original), items);
+    }
+
+    // El plazo que va desde la emision hasta el vencimiento. Si la fecha se edito a
+    // mano y quedo fuera de rango, se usa el plazo con el que se emitio.
+    private static int PlazoOtorgado(Presupuesto presupuesto)
+    {
+        var dias = presupuesto.FechaVencimiento.DayNumber - ZonaArgentina.DiaDe(presupuesto.Fecha).DayNumber;
+        return dias is >= 1 and <= ReglasPresupuesto.ValidezMaximaDias ? dias : presupuesto.ValidezDias;
     }
 
     // Las mismas reglas que los DTOs, para que el servicio no dependa de la API.
-    private static void ValidarDatos(int validezDias, List<PresupuestoItem> items)
+    private static void ValidarItems(List<PresupuestoItem> items)
     {
-        if (validezDias < 1 || validezDias > ReglasPresupuesto.ValidezMaximaDias)
-            throw new InvalidOperationException(
-                $"La validez debe estar entre 1 y {ReglasPresupuesto.ValidezMaximaDias} dias.");
-
         if (items.Count == 0)
             throw new InvalidOperationException("El presupuesto necesita al menos un item.");
 

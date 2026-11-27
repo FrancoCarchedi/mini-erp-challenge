@@ -15,6 +15,32 @@ public class AppDbContext : DbContext
     public DbSet<Factura> Facturas => Set<Factura>();
     public DbSet<Secuencia> Secuencias => Set<Secuencia>();
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        CompletarVencimientos();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        CompletarVencimientos();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    // Ningun presupuesto nuevo se guarda sin vencimiento, aunque quien lo arme solo
+    // indique ValidezDias.
+    private void CompletarVencimientos()
+    {
+        foreach (var entrada in ChangeTracker.Entries<Presupuesto>())
+        {
+            var presupuesto = entrada.Entity;
+            if (entrada.State == EntityState.Added && presupuesto.FechaVencimiento == default)
+                presupuesto.FechaVencimiento =
+                    ZonaArgentina.DiaDe(presupuesto.Fecha).AddDays(presupuesto.ValidezDias);
+        }
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // EF avisa porque Factura y PresupuestoItem requieren un Presupuesto que el

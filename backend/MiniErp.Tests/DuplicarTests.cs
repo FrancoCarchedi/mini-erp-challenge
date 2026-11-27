@@ -14,7 +14,9 @@ public class DuplicarTests
         var (cliente, articulo) = await Datos.SeedAsync(db, precio: 100m, alicuota: 21m);
         var original = await service.CrearAsync(cliente.Id, 20, new List<PresupuestoItem> { Datos.Item(articulo.Id, 3, 10m) });
         original.Estado = EstadoPresupuesto.Facturado;
-        original.Fecha = DateTime.UtcNow.AddDays(-90);
+        // Envejece el presupuesto entero: emitido hace 90 dias con 20 de plazo.
+        original.Fecha = original.Fecha.AddDays(-90);
+        original.FechaVencimiento = original.FechaVencimiento.AddDays(-90);
         articulo.PrecioUnitario = 150m;
         articulo.AlicuotaIva = 10.5m;
         await db.SaveChangesAsync();

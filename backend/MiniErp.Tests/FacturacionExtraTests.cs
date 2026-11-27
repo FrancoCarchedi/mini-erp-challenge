@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MiniErp.Core.Data;
+using MiniErp.Core;
 using MiniErp.Core.Models;
 using MiniErp.Core.Services;
 using Xunit;
@@ -49,7 +50,7 @@ public class FacturacionExtraTests
     public async Task Vencido_NoSeFactura()
     {
         var e = await ArmarAsync(stock: 10, 2);
-        e.Presupuesto.Fecha = DateTime.UtcNow.AddDays(-16);
+        e.Presupuesto.FechaVencimiento = ZonaArgentina.Hoy().AddDays(-1);
         await e.Db.SaveChangesAsync();
 
         await AssertRechazadoAsync(e, "vencido", stockEsperado: 10);

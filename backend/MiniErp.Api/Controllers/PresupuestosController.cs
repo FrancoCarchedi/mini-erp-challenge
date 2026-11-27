@@ -35,6 +35,9 @@ public class PresupuestosController : ControllerBase
         if (request.Items.Any(i => i is null))
             return BadRequest(new { error = "La lista de items tiene elementos vacios." });
 
+        if (request.ValidezDias.HasValue == request.FechaVencimiento.HasValue)
+            return BadRequest(new { error = "Hay que informar 'fechaVencimiento' o 'validezDias' (solo uno de los dos)." });
+
         var items = request.Items.Select(i => new PresupuestoItem
         {
             ArticuloId = i.ArticuloId,
@@ -44,7 +47,9 @@ public class PresupuestosController : ControllerBase
 
         try
         {
-            var creado = await _service.CrearAsync(request.ClienteId, request.ValidezDias, items);
+            var creado = request.FechaVencimiento is { } fechaVencimiento
+                ? await _service.CrearAsync(request.ClienteId, fechaVencimiento, items)
+                : await _service.CrearAsync(request.ClienteId, request.ValidezDias!.Value, items);
             var completo = await _service.ObtenerAsync(creado.Id);
             return Ok(MapToDto(completo!));
         }
@@ -108,6 +113,7 @@ public class PresupuestosController : ControllerBase
             p.Cliente?.RazonSocial ?? "",
             p.Estado.ToString(),
             p.ValidezDias,
+            p.FechaVencimiento,
             items,
             totales.Subtotal,
             totales.Iva,

@@ -10,9 +10,6 @@ public class ReporteService
 {
     public const int TopMaximo = 100;
 
-    private static readonly TimeZoneInfo ZonaArgentina =
-        TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires");
-
     private readonly AppDbContext _db;
 
     public ReporteService(AppDbContext db) => _db = db;
@@ -29,8 +26,8 @@ public class ReporteService
         if (top < 1 || top > TopMaximo)
             throw new InvalidOperationException($"El parametro 'top' debe estar entre 1 y {TopMaximo}.");
 
-        var inicio = InicioDelDiaEnUtc(desde);
-        var fin = InicioDelDiaEnUtc(hasta.AddDays(1)); // exclusivo
+        var inicio = ZonaArgentina.InicioDelDiaEnUtc(desde);
+        var fin = ZonaArgentina.InicioDelDiaEnUtc(hasta.AddDays(1)); // exclusivo
 
         var facturas = await _db.Facturas
             .AsNoTracking()
@@ -56,16 +53,5 @@ public class ReporteService
             .ThenBy(a => a.Codigo)
             .Take(top)
             .ToList();
-    }
-
-    private static DateTime InicioDelDiaEnUtc(DateOnly dia)
-    {
-        var medianoche = dia.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-
-        // En años con horario de verano hubo dias que empezaron a la 01:00.
-        if (ZonaArgentina.IsInvalidTime(medianoche))
-            medianoche = medianoche.AddHours(1);
-
-        return TimeZoneInfo.ConvertTimeToUtc(medianoche, ZonaArgentina);
     }
 }

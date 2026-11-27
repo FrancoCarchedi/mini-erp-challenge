@@ -21,5 +21,11 @@ export const formatearMoneda = (valor: number) => moneda.format(valor)
 export const formatearPorcentaje = (valor: number) => `${porcentaje.format(valor)}%`
 export const formatearFecha = (valor: string | Date) => fecha.format(new Date(valor))
 
+/**
+ * Muestra un día calendario (yyyy-MM-dd) sin pasar por Date: `new Date()` lo
+ * tomaría como medianoche UTC, que en Argentina es el día anterior.
+ */
+export const formatearDia = (dia: string) => dia.split('-').reverse().join('/')
+
 /** Día calendario en Argentina, como yyyy-MM-dd. */
 export const diaEnArgentina = (instante: Date) => fechaIso.format(instante)

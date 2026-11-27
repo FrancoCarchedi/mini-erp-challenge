@@ -10,10 +10,13 @@ import {
   agregarArticulo,
   armarRequest,
   interpretarLinea,
+  leerEntero,
   VALIDEZ_MAXIMA_DIAS,
   type LineaForm,
 } from '../lib/formulario'
+import { diaEnArgentina, formatearDia } from '../lib/format'
 import { calcularTotales } from '../lib/totales'
+import { sumarDias } from '../lib/vencimiento'
 
 export default function NuevoPresupuesto() {
   const navigate = useNavigate()
@@ -24,9 +27,11 @@ export default function NuevoPresupuesto() {
   const [validez, setValidez] = useState('15')
   const [lineas, setLineas] = useState<LineaForm[]>([])
   const [intentoEnviar, setIntentoEnviar] = useState(false)
+  const [hoy, setHoy] = useState(() => diaEnArgentina(new Date()))
 
   // Todo lo que sigue se deriva del estado en cada render.
-  const resultado = armarRequest(clienteId, validez, lineas)
+  const validezDias = leerEntero(validez, VALIDEZ_MAXIMA_DIAS)
+  const resultado = armarRequest(clienteId, validez, lineas, hoy)
   const lineasValidas = lineas.flatMap((linea) => interpretarLinea(linea) ?? [])
   const totales = calcularTotales(lineasValidas)
   const hayLineasInvalidas = lineasValidas.length < lineas.length
@@ -44,8 +49,12 @@ export default function NuevoPresupuesto() {
   function handleSubmit(evento: FormEvent) {
     evento.preventDefault()
     setIntentoEnviar(true)
-    if (!resultado.ok) return
-    crear.mutate(resultado.request, {
+    // El formulario pudo quedar abierto de un día para otro: se actualiza "hoy" al enviar.
+    const diaDeEnvio = diaEnArgentina(new Date())
+    setHoy(diaDeEnvio)
+    const envio = armarRequest(clienteId, validez, lineas, diaDeEnvio)
+    if (!envio.ok) return
+    crear.mutate(envio.request, {
       onSuccess: (creado) => navigate(`/presupuestos/${creado.id}`),
     })
   }
@@ -77,17 +86,24 @@ export default function NuevoPresupuesto() {
               ))}
             </select>
           </label>
-          <label className="text-sm font-medium">
-            Validez (días)
-            <input
-              type="number"
-              className="campo mt-1 block w-32"
-              min={1}
-              max={VALIDEZ_MAXIMA_DIAS}
-              value={validez}
-              onChange={(e) => setValidez(e.target.value)}
-            />
-          </label>
+          <div className="text-sm">
+            <label className="font-medium">
+              Validez (días)
+              <input
+                type="number"
+                className="campo mt-1 block w-32"
+                min={1}
+                max={VALIDEZ_MAXIMA_DIAS}
+                aria-invalid={validezDias === null}
+                aria-describedby="vencimiento-calculado"
+                value={validez}
+                onChange={(e) => setValidez(e.target.value)}
+              />
+            </label>
+            <p id="vencimiento-calculado" className="mt-1 text-xs text-slate-500">
+              {validezDias === null ? 'Ingresá los días.' : `Vence el ${formatearDia(sumarDias(hoy, validezDias))}`}
+            </p>
+          </div>
         </div>
 
         <BuscadorArticulos onAgregar={(articulo) => setLineas((actuales) => agregarArticulo(actuales, articulo))} />

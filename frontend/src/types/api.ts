@@ -37,7 +37,10 @@ export interface Presupuesto {
   clienteId: number
   clienteRazonSocial: string
   estado: EstadoPresupuesto
+  /** Plazo con el que se emitió. Informativo: decide `fechaVencimiento`. */
   validezDias: number
+  /** Último día en que se puede facturar (yyyy-MM-dd, calendario de Argentina). */
+  fechaVencimiento: string
   items: PresupuestoItem[]
   subtotal: number
   iva: number
@@ -46,7 +49,8 @@ export interface Presupuesto {
 
 export interface CrearPresupuestoRequest {
   clienteId: number
-  validezDias: number
+  /** yyyy-MM-dd. La API también acepta `validezDias`; este cliente envía la fecha. */
+  fechaVencimiento: string
   items: { articuloId: number; cantidad: number; descuentoPct: number }[]
 }
 

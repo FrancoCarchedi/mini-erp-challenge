@@ -15,8 +15,12 @@ npm run lint
 ```
 
 - **Antes del primer arranque:** si existe un `backend/MiniErp.Api/minierp.db` anterior, borralo
-  junto con `-shm` y `-wal` (si están). El esquema cambió (bugs 3 y 6 y la baja lógica) y
-  `EnsureCreated` no lo actualiza: con una base vieja, la API falla al consultar presupuestos.
+  junto con `-shm` y `-wal` (si están). El esquema cambió (bugs 3 y 6, la baja lógica y la
+  fecha de vencimiento) y `EnsureCreated` no lo actualiza: con una base vieja, la API falla al
+  consultar presupuestos.
+- **Probar un presupuesto vencido:** la API no permite crearlo, así que hay que editar la base
+  (la fecha va como texto `yyyy-MM-dd`, anterior a hoy) y después facturarlo:
+  `UPDATE Presupuestos SET FechaVencimiento = '2026-01-31' WHERE Numero = 1;`
 - El cliente usa `http://localhost:5080` por defecto; para cambiarlo, copiá
   `frontend/.env.example` a `frontend/.env`.
 - Vite está fijado al puerto 5173 (`strictPort`), el único que la API permite por CORS.
@@ -156,6 +160,44 @@ No es uno de los bugs plantados: es una mejora que surgió al probar los flujos 
   base, y 40 pares simultáneos de eliminar y facturar el mismo presupuesto dieron siempre un
   solo ganador (18 la baja y 22 la factura), sin facturas de presupuestos eliminados.
 
+## Mejora: fecha de vencimiento guardada en el presupuesto
+
+No es un bug plantado: es una mejora sobre el modelo.
+
+- **Qué pasaba:** solo se guardaba `ValidezDias`. El vencimiento había que calcularlo
+  (`Fecha + ValidezDias`) cada vez que se necesitaba, en el backend y en el cliente.
+- **Por qué cambiarlo:** con la fecha guardada, queda explícito hasta cuándo vale cada
+  presupuesto, se pueden filtrar los vencidos en la base, hay una sola fuente de verdad y se
+  puede probar el vencimiento editando un solo dato. No es una mejora de rendimiento relevante
+  a esta escala.
+- **Modelo:** columna nueva `FechaVencimiento`. `ValidezDias` **se conserva** para no romper el
+  contrato de la API ni los tests originales (que no se pueden modificar y usan la propiedad),
+  pero es solo informativo: **las reglas de negocio usan `FechaVencimiento`**. Si se edita la
+  fecha en la base, `ValidezDias` no se recalcula.
+- **Es un día, no un instante** (`DateOnly`, `yyyy-MM-dd`), del calendario de Argentina. Se
+  puede facturar **hasta el final de ese día inclusive**. Antes vencía a la misma hora de
+  emisión N días después, así que la regla ahora da las horas restantes del último día. La
+  conversión está en `ZonaArgentina`, que comparte con el reporte.
+- **API:** el `POST` acepta `fechaVencimiento` **o** `validezDias`, uno solo (con ambos o
+  ninguno, 400, para no guardar datos contradictorios). Así el ejemplo del README sigue
+  funcionando. La fecha tiene que ser posterior a hoy y a no más de 3650 días: el mismo rango
+  que la validez de 1 a 3650. Las respuestas incluyen los dos campos.
+- **Valor por defecto:** si un presupuesto se guarda solo con `ValidezDias` (como en los tests
+  originales), `AppDbContext` completa la fecha al guardar.
+- **Cliente:** el usuario sigue eligiendo días y ve la fecha resultante ("Vence el …"); a la
+  API envía `fechaVencimiento`. La fecha se maneja como texto: `new Date('2026-12-12')` es
+  medianoche UTC y en Argentina se mostraría como 11/12. El backend valida lo que recibe, así
+  que un reloj mal puesto no puede crear un presupuesto ya vencido ni con un plazo fuera de
+  rango.
+- **Facturar y la grilla** usan la fecha. **Duplicar** conserva el plazo entre la emisión y el
+  vencimiento; si una edición manual lo dejó fuera de rango, usa `ValidezDias`. El **reporte**
+  no cambia: filtra por fecha de factura.
+- **⚠️ Esquema:** columna nueva; hay que regenerar el `.db`. No hay migración de datos.
+- **Verificación:** `VencimientoTests` y `vencimiento.test.ts`. Por HTTP: las dos formas de
+  alta, los rechazos y la edición de la fecha en la base (ayer: no factura; hoy: factura). En
+  navegador, con zona horaria de Tokio y de Los Ángeles, para comprobar que la fecha no se
+  corre.
+
 ## Funcionalidades nuevas del backend
 
 ### Duplicar: `POST /api/presupuestos/{id}/duplicar`
@@ -252,7 +294,7 @@ Respecto de la estructura prevista en el plan, la tabla genérica quedó como un
 
 **Hecho:** las partes A (7 bugs), B (grilla, alta con totales en vivo y facturar) y C completa
 (duplicar y reporte, con endpoint y UI, y tests propios). Además, detalle de presupuesto,
-lista de facturas y baja lógica al eliminar presupuestos.
+lista de facturas, baja lógica al eliminar presupuestos y fecha de vencimiento guardada.
 
 **Priorización:** primero los bugs con test, después el resto de los bugs (el cliente depende
 de que la API sea correcta), el cliente obligatorio y al final los stretch. Hubo un cambio de
@@ -261,25 +303,25 @@ React, que hacía falta antes de escribir el cliente.
 
 **Tiempo:** la consigna sugiere 3 horas. Según los commits, la ejecución con IA fue de 14:47
 a 15:07 más la verificación final, con una pausa en el medio para instalar la skill. No
-incluye la lectura previa del código ni el armado del plan, ni la prueba manual y la baja
-lógica, que vinieron después.
+incluye la lectura previa del código ni el armado del plan, ni la prueba manual y las dos
+mejoras posteriores (baja lógica y fecha de vencimiento).
 
 **Quedó afuera:** lo listado en la última sección. No hay tests de componentes ni e2e en el
 repo; el recorrido en navegador se hizo con un script descartable.
 
 ### Verificación
 
-- Backend: 52 tests en verde (los 6 originales, sin modificar, y 46 nuevos).
-- Cliente: 43 tests en verde; `build` y `lint` sin errores.
+- Backend: 64 tests en verde (los 6 originales, sin modificar, y 58 nuevos).
+- Cliente: 52 tests en verde; `build` y `lint` sin errores.
 - Por HTTP, sobre una base nueva: los 5 flujos del README, los bugs sin test, duplicar,
   reporte, CORS y concurrencia. No usé la interfaz de Swagger; sí comprobé que publica los
   endpoints nuevos.
-- En Chrome headless contra la API real: 33 controles (alta y totales, errores de stock,
-  vencido y ya facturado, duplicar con precio actualizado, eliminar, facturas, reporte, 400 de
-  la API y API caída), sin errores de consola. Para probar "vencido" y "precio actualizado"
-  edité la base de prueba, porque la API no permite generar esos casos.
-- Tras la baja lógica se repitieron los tests del backend, las pruebas por HTTP y el recorrido
-  en navegador.
+- En Chrome headless contra la API real: 35 controles (alta, totales y fecha de vencimiento,
+  errores de stock, vencido y ya facturado, duplicar con precio actualizado, eliminar,
+  facturas, reporte, 400 de la API y API caída), sin errores de consola. Para probar "vencido"
+  y "precio actualizado" edité la base de prueba, porque la API no permite generar esos casos.
+- Después de cada una de las dos mejoras se repitieron los tests, las pruebas por HTTP y el
+  recorrido en navegador.
 
 ## Cómo usé IA
 
@@ -295,6 +337,12 @@ repo; el recorrido en navegador se hizo con un script descartable.
   más de 2 decimales y de ítems nulos, confirmación antes de facturar o eliminar, tests de la
   validación del formulario y de los errores de la API, y las protecciones del reporte
   (horario de verano y fecha máxima).
+- **Segunda mejora que pedí:** guardar la fecha de vencimiento, no solo los días, y que el
+  cliente la envíe. Antes de implementarlo, la IA avisó que los tests originales usan
+  `ValidezDias` y que el ejemplo del README lo envía, y me preguntó cómo resolverlo. Decidí
+  conservar `ValidezDias`, agregar `FechaVencimiento` y que la lógica de negocio use la fecha,
+  en parte para poder probar un vencido editando la base. Entre guardar el día o la fecha y
+  hora, elegí el día.
 - **Cómo se controló:** cada bug se reprodujo antes del arreglo; los tests originales no se
   tocaron; los flujos, la concurrencia, la paridad de totales y la UI se probaron contra la API
   real.

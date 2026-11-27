@@ -49,10 +49,16 @@ describe('agregarArticulo', () => {
 })
 
 describe('armarRequest', () => {
-  it('arma el body del POST', () => {
-    expect(armarRequest('1', '15', [linea('2', '5,5')])).toEqual({
+  const HOY = '2026-11-27'
+
+  it('arma el body del POST con la fecha de vencimiento en lugar de los días', () => {
+    expect(armarRequest('1', '15', [linea('2', '5,5')], HOY)).toEqual({
       ok: true,
-      request: { clienteId: 1, validezDias: 15, items: [{ articuloId: 1, cantidad: 2, descuentoPct: 5.5 }] },
+      request: {
+        clienteId: 1,
+        fechaVencimiento: '2026-12-12',
+        items: [{ articuloId: 1, cantidad: 2, descuentoPct: 5.5 }],
+      },
     })
   })
 
@@ -63,7 +69,7 @@ describe('armarRequest', () => {
     ['cantidad 0', '1', '15', [linea('0')]],
     ['descuento 150', '1', '15', [linea('1', '150')]],
   ])('rechaza: %s', (_caso, cliente, validez, lineas) => {
-    const resultado = armarRequest(cliente, validez, lineas)
+    const resultado = armarRequest(cliente, validez, lineas, HOY)
 
     expect(resultado.ok).toBe(false)
     expect(!resultado.ok && resultado.errores).toHaveLength(1)
