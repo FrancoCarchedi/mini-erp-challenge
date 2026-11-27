@@ -19,6 +19,22 @@ en la línea base (3 de 6) o contra la API levantada con una base temporal.
   con el cliente.
 - **Verificación:** `CalcularTotales_ConAlicuotasMixtas_CalculaIvaPorLinea`.
 
+### 4. Se facturaba sin stock y más de una vez
+
+*(La numeración de esta lista sigue la del plan de acción; los bugs 1 y 4 se hicieron primero
+porque tenían tests.)*
+
+- **Qué pasaba:** el stock quedaba negativo y el mismo presupuesto se podía facturar varias
+  veces, descontando stock en cada una.
+- **Por qué:** `FacturarAsync` solo validaba el vencimiento y restaba stock sin comprobar nada.
+- **Arreglo:** antes de modificar datos se valida, en este orden: estado (rechaza `Facturado`,
+  `Rechazado` y presupuestos que ya tienen factura), vigencia y stock. El stock se valida
+  sobre la suma por artículo, porque un artículo puede venir en dos líneas; el error nombra los
+  artículos que no alcanzan. `Borrador` se puede facturar porque todo presupuesto nace así y no
+  hay flujo de aprobación. Todo corre en una transacción abierta **antes de leer**: en SQLite
+  (`BEGIN IMMEDIATE`) eso serializa las facturaciones simultáneas.
+- **Verificación:** `Facturar_SinStockSuficiente_…` y `Facturar_DosVeces_…`.
+
 ## Decisiones del cliente React
 
 <!--
