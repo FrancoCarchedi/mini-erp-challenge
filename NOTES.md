@@ -4,11 +4,20 @@
 
 ## Bugs encontrados (backend)
 
-<!-- Por cada bug: qué pasaba, por qué pasaba, cómo lo arreglaste. -->
+Cada bug se reprodujo sobre el código original antes de arreglarlo: con los tests que fallaban
+en la línea base (3 de 6) o contra la API levantada con una base temporal.
 
-1.
-2.
-3.
+### 1. El IVA se calculaba siempre al 21%
+
+- **Qué pasaba:** en el flujo 2 del README (ART-001 + ART-004) el IVA daba 8.295,00 en lugar
+  de 7.822,50.
+- **Por qué:** `CalcularTotales` hacía `subtotal * 0.21m` e ignoraba la alícuota de cada línea.
+  Además no redondeaba, y el controller repetía por su cuenta la cuenta del subtotal de línea.
+- **Arreglo:** `CalculoLinea` concentra la regla (subtotal e IVA redondeados a 2 decimales por
+  línea; después se suma). La usan el servicio y el DTO. El redondeo es
+  `MidpointRounding.AwayFromZero`: el default de .NET es *banker's rounding* y no coincidiría
+  con el cliente.
+- **Verificación:** `CalcularTotales_ConAlicuotasMixtas_CalculaIvaPorLinea`.
 
 ## Decisiones del cliente React
 

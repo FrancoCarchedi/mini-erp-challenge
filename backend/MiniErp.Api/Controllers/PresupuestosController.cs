@@ -69,7 +69,7 @@ public class PresupuestosController : ControllerBase
             i.PrecioUnitario,
             i.DescuentoPct,
             i.AlicuotaIva,
-            i.Cantidad * i.PrecioUnitario * (1 - i.DescuentoPct / 100m)
+            CalculoLinea.Subtotal(i)
         )).ToList();
 
         return new PresupuestoDto(
