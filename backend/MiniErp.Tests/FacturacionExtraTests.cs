@@ -86,6 +86,16 @@ public class FacturacionExtraTests
     }
 
     [Fact]
+    public async Task ArticuloRepetido_CuyaSumaSuperaElMaximoDeInt_SeRechazaPorStock()
+    {
+        // Cada linea es valida, pero la suma (2.148.000.000) no entra en un int.
+        var lineas = Enumerable.Repeat(ReglasPresupuesto.CantidadMaxima, 2148).ToArray();
+        var e = await ArmarAsync(stock: 10, lineas);
+
+        await AssertRechazadoAsync(e, "pedido 2148000000, disponible 10", stockEsperado: 10);
+    }
+
+    [Fact]
     public async Task Facturado_NoSePuedeEliminar_YLaFacturaSeConserva()
     {
         var e = await ArmarAsync(stock: 10, 2);

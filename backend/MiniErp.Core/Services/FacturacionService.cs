@@ -83,7 +83,8 @@ public class FacturacionService
     {
         var faltantes = presupuesto.Items
             .GroupBy(i => i.ArticuloId)
-            .Select(g => new { g.First().Articulo, Pedido = g.Sum(i => i.Cantidad) })
+            // Se suma en long: muchas lineas validas pueden superar el maximo de int.
+            .Select(g => new { g.First().Articulo, Pedido = g.Sum(i => (long)i.Cantidad) })
             .Where(x => x.Pedido > x.Articulo!.StockActual)
             .Select(x => $"{x.Articulo!.Codigo} {x.Articulo.Descripcion} (pedido {x.Pedido}, disponible {x.Articulo.StockActual})")
             .ToList();
