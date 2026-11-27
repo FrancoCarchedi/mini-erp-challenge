@@ -138,15 +138,15 @@ cómo se resolvió, cómo se verificó) → commit `fix: …`.
 
 ## Parte B — Cliente React (`frontend/`)
 
-### [ ] Setup
+### [x] Setup
 
-- [ ] **Primero:** instalar las skills de Vercel con `npx skills add vercel-labs/agent-skills` (incluye `react-best-practices`). El comando puede pedir elegir opciones en forma interactiva; en ese caso, correrlo desde la terminal (`! npx skills add vercel-labs/agent-skills`).
-- [ ] Verificar que la skill quedó instalada en la carpeta de skills del proyecto. Si no aparece en la lista, recargar la sesión.
-- [ ] Commit: `chore: agregar skills de Vercel (react-best-practices)`.
-- [ ] **Invocar `react-best-practices` antes de escribir código React y seguirla en todo el cliente** (componentes, hooks, data fetching, rendimiento). Si algo choca con este plan, gana la skill y se anota el ajuste en `NOTES.md`.
-- [ ] `npm create vite@latest frontend -- --template react-ts`
-- [ ] Dependencias: `@tanstack/react-query`, `react-router-dom`, `tailwindcss` con su plugin de Vite (v4). De desarrollo: `vitest`.
-- [ ] `.env` y `.env.example` con `VITE_API_URL=http://localhost:5080`. La API ya permite CORS desde el puerto 5173.
+- [x] **Primero:** instalar las skills de Vercel con `npx skills add vercel-labs/agent-skills` (incluye `react-best-practices`). El comando puede pedir elegir opciones en forma interactiva; en ese caso, correrlo desde la terminal (`! npx skills add vercel-labs/agent-skills`).
+- [x] Verificar que la skill quedó instalada en la carpeta de skills del proyecto. Si no aparece en la lista, recargar la sesión.
+- [x] Commit: `chore: agregar skills de Vercel (react-best-practices)`.
+- [x] **Invocar `react-best-practices` antes de escribir código React y seguirla en todo el cliente** (componentes, hooks, data fetching, rendimiento). Si algo choca con este plan, gana la skill y se anota el ajuste en `NOTES.md`.
+- [x] `npm create vite@latest frontend -- --template react-ts`
+- [x] Dependencias: `@tanstack/react-query`, `react-router-dom`, `tailwindcss` con su plugin de Vite (v4). De desarrollo: `vitest`.
+- [x] `.env` y `.env.example` con `VITE_API_URL=http://localhost:5080`. La API ya permite CORS desde el puerto 5173.
 
 ### Estructura
 
@@ -160,14 +160,14 @@ frontend/src/
   pages/       Presupuestos, NuevoPresupuesto, PresupuestoDetalle, Facturas, Reporte
 ```
 
-### [ ] Totales en vivo (`lib/totales.ts`)
+### [x] Totales en vivo (`lib/totales.ts`)
 
 - La misma regla que el backend, en **centavos enteros** para evitar errores de punto flotante:
   redondeo del subtotal por línea, redondeo del IVA por línea y después la suma.
 - Redondeo *half away from zero*, igual que `MidpointRounding.AwayFromZero`.
 - El total que se guarda lo calcula el backend; el del editor es una ayuda visual que debe coincidir.
 
-### [ ] Pantallas obligatorias
+### [x] Pantallas obligatorias
 
 1. **Grilla de presupuestos**
    - Número, fecha, cliente, estado, vencimiento (marcando los vencidos) y total.
@@ -182,7 +182,7 @@ frontend/src/
    - **Totales en vivo:** subtotal por línea, subtotal, IVA y total.
    - Mismas validaciones que el backend; sus errores 400 se muestran.
 
-### [ ] Pantallas complementarias
+### [x] Pantallas complementarias
 
 3. **Detalle** de un presupuesto, con los ítems y totales del backend.
 4. **Facturas**, en forma de lista.
@@ -193,7 +193,7 @@ Commits sugeridos: `feat(front): scaffold`, `feat(front): grilla`, `feat(front):
 
 ## Parte C — Stretch
 
-### [ ] Duplicar presupuesto
+### [x] Duplicar presupuesto
 
 - **Endpoint:** `POST /api/presupuestos/{id}/duplicar` → `PresupuestoService.DuplicarAsync(id)`.
 - Número nuevo, `Fecha = UtcNow` y estado `Borrador`.
@@ -202,7 +202,7 @@ Commits sugeridos: `feat(front): scaffold`, `feat(front): grilla`, `feat(front):
 - 404 si no existe.
 - **UI:** acción "Duplicar" en la grilla.
 
-### [ ] Reporte: top N artículos por monto facturado
+### [x] Reporte: top N artículos por monto facturado
 
 - **Endpoint:** `GET /api/reportes/top-articulos?desde=&hasta=&top=5` (`ReportesController` + `ReporteService`).
 - Toma las facturas del rango por `Factura.Fecha`.
@@ -229,7 +229,7 @@ Archivos **nuevos** en `backend/MiniErp.Tests/`, usando `TestDbFactory`:
 | `DuplicarTests` | Número nuevo y precios actualizados |
 | `ReporteTests` | Rango de fechas (incluidos los bordes del día argentino), orden y límite N |
 
-### [ ] Tests del front
+### [x] Tests del front
 
 `totales.test.ts` (Vitest): los casos de `CalcularTotalesTests`, el flujo 2 del README y casos de redondeo en .5.
 
@@ -239,12 +239,12 @@ Commits sugeridos: `feat: duplicar presupuesto`, `feat: reporte top artículos`,
 
 ## `NOTES.md` (se completa en cada paso)
 
-- [ ] **Bugs encontrados:** qué pasaba, por qué, cómo se resolvió y cómo se verificó.
-- [ ] **Decisiones del cliente:** estructura, librerías y cálculo de totales en vivo.
-- [ ] **Qué hice y qué dejé afuera**, con el criterio de priorización.
-- [ ] **Cómo usé IA:** qué pedí, qué acepté, qué descarté y dónde se equivocó. Anotarlo durante el trabajo.
-- [ ] **Qué falta para producción:** migraciones en lugar de `EnsureCreated`, autenticación, concurrencia sobre el stock, paginación, logging, tests e2e, flujo de estados Aprobado/Rechazado.
-- [ ] Cómo levantar el frontend y correr sus tests.
+- [x] **Bugs encontrados:** qué pasaba, por qué, cómo se resolvió y cómo se verificó.
+- [x] **Decisiones del cliente:** estructura, librerías y cálculo de totales en vivo.
+- [x] **Qué hice y qué dejé afuera**, con el criterio de priorización.
+- [x] **Cómo usé IA:** qué pedí, qué acepté, qué descarté y dónde se equivocó. Anotarlo durante el trabajo.
+- [x] **Qué falta para producción:** migraciones en lugar de `EnsureCreated`, autenticación, concurrencia sobre el stock, paginación, logging, tests e2e, flujo de estados Aprobado/Rechazado.
+- [x] Cómo levantar el frontend y correr sus tests.
 
 > La consigna sugiere 3 horas. Como se apunta a completar todo, conviene registrar el tiempo real.
 
@@ -252,13 +252,13 @@ Commits sugeridos: `feat: duplicar presupuesto`, `feat: reporte top artículos`,
 
 ## Verificación end-to-end
 
-- [ ] `cd backend && dotnet test`: todo en verde (tests existentes y nuevos).
-- [ ] Borrar `minierp.db`, correr `dotnet run` en `backend/MiniErp.Api` y probar en Swagger los 5 flujos, duplicar y el reporte.
-- [ ] `cd frontend && npm run test && npm run build`, sin errores de TypeScript.
-- [ ] Con `npm run dev`, probar a mano:
+- [x] `cd backend && dotnet test`: todo en verde (tests existentes y nuevos).
+- [x] Borrar `minierp.db`, correr `dotnet run` en `backend/MiniErp.Api` y probar en Swagger los 5 flujos, duplicar y el reporte. *(Hecho por HTTP sobre una base nueva, no desde la UI de Swagger.)*
+- [x] `cd frontend && npm run test && npm run build`, sin errores de TypeScript.
+- [x] Con `npm run dev`, probar a mano: *(Hecho con un script en Chrome headless.)*
   - ART-001 + ART-004 muestra 39.500 / 7.822,50 / 47.322,50 y coincide con el detalle.
   - Facturar 5 unidades de ART-006 muestra el error de stock.
   - Facturar dos veces muestra el error de "ya facturado".
   - Duplicar genera un número nuevo con los precios actuales.
-- [ ] Revisar que `git log` muestre un commit por paso.
+- [x] Revisar que `git log` muestre un commit por paso.
 - [ ] Abrir el PR `challenge/solucion` → `main` (o el `.zip` con `.git`, según lo que pidan).

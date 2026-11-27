@@ -1,6 +1,26 @@
 # NOTES
 
-> Completá este archivo a medida que avanzás. Es parte de la entrega.
+## Cómo levantar y probar
+
+```bash
+# Backend: http://localhost:5080 (Swagger en /swagger)
+cd backend/MiniErp.Api && dotnet run
+cd backend && dotnet test
+
+# Cliente (en otra terminal): http://localhost:5173
+cd frontend && npm install && npm run dev
+npm run test
+npm run build
+npm run lint
+```
+
+- **Antes del primer arranque:** si existe un `backend/MiniErp.Api/minierp.db` anterior, borralo
+  junto con `-shm` y `-wal`. El esquema cambió (bugs 3 y 6) y `EnsureCreated` no lo actualiza.
+- El cliente usa `http://localhost:5080` por defecto; para cambiarlo, copiá
+  `frontend/.env.example` a `frontend/.env`.
+- Vite está fijado al puerto 5173 (`strictPort`), el único que la API permite por CORS.
+- Se necesita **Node 22.12 o superior** (probado con Node 24). El README del challenge dice 18+,
+  pero Vitest 5 exige `^22.12.0 || ^24.0.0 || >=26.0.0`.
 
 ## Bugs encontrados (backend)
 
@@ -118,23 +138,127 @@ que un alta. 404 si el original no existe.
 
 ## Decisiones del cliente React
 
-<!--
-Estructura del proyecto, librerías que usaste y por qué, y cómo resolvés los
-totales en vivo (subtotal, IVA, total) para que coincidan con el backend.
--->
+### Librerías
+
+| Librería | Para qué y por qué |
+|---|---|
+| Vite + React + TypeScript (`strict`) | Arranque rápido; usa el puerto que la API ya permite |
+| TanStack Query | Estado del servidor: caché, deduplicación, cancelación e invalidación tras cada acción |
+| React Router | Rutas; las pantallas secundarias se cargan con `React.lazy` |
+| Tailwind v4 | Estilos sin librería de componentes; las clases repetidas están en `index.css` |
+| Vitest | Tests de la lógica pura, sin DOM |
+
+No usé librerías de formularios ni de validación: hay un solo formulario.
+
+### Estructura (`frontend/src`)
+
+```
+api/         client.ts (fetch + ApiError), errores.ts y un archivo por recurso
+types/       DTOs espejo del backend
+hooks/       una consulta o mutación por hook
+lib/         lógica pura y testeada: totales, formulario, vencimiento, formato
+components/  piezas reutilizables
+pages/       Presupuestos, NuevoPresupuesto, PresupuestoDetalle, Facturas, Reporte
+```
+
+### Totales en vivo (`lib/totales.ts`)
+
+- La misma regla que `CalculoLinea.cs`: redondeo del subtotal por línea, redondeo del IVA por
+  línea (sobre el subtotal ya redondeado) y después la suma. Redondeo *half away from zero*.
+- Se calcula en **centavos enteros** porque con `number` los casos `.5` fallan (1,005 redondea
+  a 1,00). Con **`BigInt`**, porque cantidad × precio × descuento puede superar la precisión
+  entera de `number`.
+- Se derivan en cada render; no se guardan en estado. Las líneas con datos inválidos quedan
+  afuera y la pantalla lo avisa.
+- Es una ayuda visual: lo que vale es lo que calcula el backend, que es lo que muestran la
+  grilla y el detalle.
+- **Paridad comprobada:** el `totales.ts` real contra la API en 300 presupuestos aleatorios
+  (1.310 líneas, descuentos con 2 decimales, cantidades de hasta 1.000.000): 0 diferencias.
+
+### Errores y validaciones
+
+- La API responde `{ error }` (reglas de negocio) o `ValidationProblem` (DTOs). Los dos, y la
+  API caída, se convierten en `ApiError` con mensajes legibles.
+- El alta valida lo mismo que el backend. Los campos se guardan como texto para no pisar lo que
+  se está escribiendo, y el descuento admite coma o punto.
+- Superar el stock **avisa pero no bloquea**: el stock se valida al facturar.
+- En la grilla, "Facturar" se deshabilita solo por estado (`Facturado`, `Rechazado`). En un
+  **vencido** queda habilitado, para mostrar el motivo que da el backend. "Ya facturado" se ve
+  cuando la grilla está desactualizada (otra pestaña o usuario); ante cualquier error se
+  vuelve a consultar.
+- Facturar y eliminar piden confirmación, y las acciones se bloquean hasta que la grilla queda
+  actualizada.
+
+### Skill `react-best-practices` (Vercel)
+
+Está versionada en `frontend/.agents/skills/` (`.claude/` es un enlace local, ignorado) y se
+aplicó en todo el cliente. Apliqué: imports directos sin *barrels*, pantallas con carga
+diferida y precarga al apuntar el enlace, valores derivados en el render, `setState`
+funcional, acciones en los *event handlers*, ningún componente definido dentro de otro,
+condicionales con ternarios y formateadores `Intl` creados una sola vez.
+
+Ajustes:
+
+- `client-swr-dedup` propone **SWR**. Mantuve **TanStack Query**, que es lo que decidía el
+  plan: interpreto que el objetivo de la regla es no pedir datos a mano en efectos y
+  deduplicar requests, y TanStack Query lo cumple. El plan decía que ante un choque ganaba la
+  skill, así que dejo esta excepción explícita.
+- Las reglas de Next.js se adaptaron (`React.lazy` en lugar de `next/dynamic`). Las de
+  servidor e hidratación no aplican a una SPA.
+
+Respecto de la estructura prevista en el plan, la tabla genérica quedó como una clase CSS
+(`.tabla`): las grillas no comparten columnas ni comportamiento.
 
 ## Qué hice y qué dejé afuera
 
-<!-- Qué completaste, qué priorizaste y por qué, qué quedó pendiente. -->
+**Hecho:** las partes A (7 bugs), B (grilla, alta con totales en vivo y facturar) y C completa
+(duplicar y reporte, con endpoint y UI, y tests propios). Además, detalle de presupuesto y
+lista de facturas.
+
+**Priorización:** primero los bugs con test, después el resto de los bugs (el cliente depende
+de que la API sea correcta), el cliente obligatorio y al final los stretch. Hubo un cambio de
+orden: el backend de la parte C se adelantó mientras estaba pendiente instalar la skill de
+React, que hacía falta antes de escribir el cliente.
+
+**Tiempo:** la consigna sugiere 3 horas. Según los commits, la ejecución con IA fue de 14:47
+a 15:07 más la verificación final, con una pausa en el medio para instalar la skill. No
+incluye la lectura previa del código ni el armado del plan.
+
+**Quedó afuera:** lo listado en la última sección. No hay tests de componentes ni e2e en el
+repo; el recorrido en navegador se hizo con un script descartable.
+
+### Verificación
+
+- Backend: 46 tests en verde (los 6 originales, sin modificar, y 40 nuevos).
+- Cliente: 43 tests en verde; `build` y `lint` sin errores.
+- Por HTTP, sobre una base nueva: los 5 flujos del README, los bugs sin test, duplicar,
+  reporte, CORS y concurrencia. No usé la interfaz de Swagger; sí comprobé que publica los
+  endpoints nuevos.
+- En Chrome headless contra la API real: 33 controles (alta y totales, errores de stock,
+  vencido y ya facturado, duplicar con precio actualizado, eliminar, facturas, reporte, 400 de
+  la API y API caída), sin errores de consola. Para probar "vencido" y "precio actualizado"
+  edité la base de prueba, porque la API no permite generar esos casos.
 
 ## Cómo usé IA
 
-<!-- Borrador que se completa durante el trabajo. -->
-
 - **Para qué:** usé Claude Code para armar el plan (`PLAN-DE-ACCION.md`) a partir de leer el
-  código, y le pedí que lo ejecutara en orden.
+  código, y después para implementarlo completo: arreglos, endpoints, cliente, tests y estas
+  notas.
+- **Qué le pedí:** ejecutar el plan en orden; más tarde, con la skill de React ya instalada,
+  construir el cliente con sus tests, completar las notas y verificar de punta a punta.
+- **Qué se decidió en el plan:** stack del cliente, tabla de secuencia (un número nunca se
+  reutiliza, así que se descartó `Max + 1`), un commit por paso y tests propios en archivos
+  nuevos. Para las fechas se descartó un conversor de JSON en favor del conversor del ORM.
+- **Qué agregó por fuera del plan:** topes de cantidad y validez, el rechazo de descuentos con
+  más de 2 decimales y de ítems nulos, confirmación antes de facturar o eliminar, tests de la
+  validación del formulario y de los errores de la API, y las protecciones del reporte
+  (horario de verano y fecha máxima).
 - **Cómo se controló:** cada bug se reprodujo antes del arreglo; los tests originales no se
-  tocaron; los flujos del README y la concurrencia se probaron por HTTP contra la API real.
+  tocaron; los flujos, la concurrencia, la paridad de totales y la UI se probaron contra la API
+  real.
+- **Límites de la herramienta:** el modo automático de Claude Code bloqueó el comando que iba
+  a consultar las skills de Vercel; la skill la instalé yo y la IA revisó los archivos antes
+  de usarla.
 - **Dónde se equivocó:**
   - Intentó editar archivos con un script de Python, que no está instalado; el comando siguió
     de largo y corrió los tests sin los cambios.
@@ -142,6 +266,26 @@ totales en vivo (subtotal, IVA, total) para que coincidan con el backend.
     control de seguridad de Claude Code bloqueó el comando completo.
   - Escribió un test de redondeo cuyo caso daba el mismo resultado con las dos formas de
     calcular, así que no probaba nada. Se reemplazó por uno que sí las distingue.
+  - Intentó crear muchos archivos del cliente en un solo comando de shell, que falló por las
+    comillas sin ejecutar nada.
+  - Puso mal el valor esperado de un test de importes grandes (cuenta mal hecha). El test
+    falló, se rehízo la cuenta y se confirmó con el mismo caso en el backend, con `decimal`.
 
 ## Qué haría con más tiempo / qué falta para producción
+
+- **Migraciones de EF** en lugar de `EnsureCreated`, para cambiar el esquema sin borrar datos.
+- **Autenticación y autorización**, y auditoría de quién factura o elimina.
+- **Concurrencia del stock** en un motor con escrituras simultáneas: la serialización actual
+  depende del lock de SQLite. En otro motor haría falta un token de concurrencia o un `UPDATE`
+  condicional, y revisar el SQL de la secuencia.
+- **Errores:** un formato único (`ProblemDetails`), 404/409 donde hoy hay 400 (por ejemplo,
+  facturar un presupuesto inexistente), manejo global de excepciones y mensajes con acentos.
+- **Paginación y filtros** en las listas. Hoy todo se trae completo y el reporte suma en
+  memoria.
+- **Estados** `Aprobado` y `Rechazado`: existen, pero no hay flujo que los asigne.
+- **Observabilidad:** logging estructurado, métricas y health checks.
+- **Cliente:** tests de componentes y e2e en el repo, *error boundary* (por ejemplo, si falla
+  la descarga de una pantalla), accesibilidad revisada y un diálogo propio en lugar de
+  `window.confirm`.
+- **CI** que corra tests, build y lint en cada PR.
 
