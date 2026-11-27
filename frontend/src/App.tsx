@@ -6,8 +6,14 @@ import { Presupuestos } from './pages/Presupuestos'
 // La grilla es la pantalla de entrada; el resto se descarga cuando se usa.
 const PresupuestoDetalle = lazy(() => import('./pages/PresupuestoDetalle'))
 const NuevoPresupuesto = lazy(() => import('./pages/NuevoPresupuesto'))
+const cargarFacturas = () => import('./pages/Facturas')
+const Facturas = lazy(cargarFacturas)
 
-const SECCIONES = [{ ruta: '/', titulo: 'Presupuestos' }]
+// `precargar` empieza a descargar la pantalla al apuntar el enlace.
+const SECCIONES = [
+  { ruta: '/', titulo: 'Presupuestos' },
+  { ruta: '/facturas', titulo: 'Facturas', precargar: cargarFacturas },
+]
 
 const claseDeEnlace = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-1.5 text-sm font-medium ${isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-100'}`
@@ -19,8 +25,15 @@ export function App() {
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
           <span className="text-lg font-bold">Mini ERP</span>
           <nav className="flex gap-1">
-            {SECCIONES.map(({ ruta, titulo }) => (
-              <NavLink key={ruta} to={ruta} end className={claseDeEnlace}>
+            {SECCIONES.map(({ ruta, titulo, precargar }) => (
+              <NavLink
+                key={ruta}
+                to={ruta}
+                end
+                className={claseDeEnlace}
+                onMouseEnter={precargar}
+                onFocus={precargar}
+              >
                 {titulo}
               </NavLink>
             ))}
@@ -33,6 +46,7 @@ export function App() {
             <Route path="/" element={<Presupuestos />} />
             <Route path="/presupuestos/nuevo" element={<NuevoPresupuesto />} />
             <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
+            <Route path="/facturas" element={<Facturas />} />
             <Route path="*" element={<p>La página no existe.</p>} />
           </Routes>
         </Suspense>
