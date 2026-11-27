@@ -97,6 +97,25 @@ porque tenían tests.)*
   backend habría seguido recibiendo `Unspecified`.
 - **Verificación:** `FechasUtcTests` y las fechas de los `GET`, que terminan en `Z`.
 
+## Funcionalidades nuevas del backend
+
+### Duplicar: `POST /api/presupuestos/{id}/duplicar`
+
+Copia cliente, validez, artículos, cantidades y descuentos, y reutiliza `CrearAsync`: el número,
+la fecha, el estado `Borrador` y el precio y la alícuota **actuales** salen de las mismas reglas
+que un alta. 404 si el original no existe.
+
+### Reporte: `GET /api/reportes/top-articulos?desde=&hasta=&top=5`
+
+- **Monto = subtotal neto sin IVA**, con los precios guardados en el presupuesto facturado (no
+  los actuales). También devuelve cantidad e IVA.
+- **Zona horaria:** `desde` y `hasta` (`yyyy-MM-dd`) son días de **Argentina**, ambos
+  inclusivos, y se convierten a un rango UTC semiabierto sobre `Factura.Fecha`. Una factura del
+  30/11 a las 22:00 se guarda como 01/12 01:00 UTC y cuenta en noviembre.
+- SQLite no puede hacer `Sum` sobre `decimal` desde EF: se filtra en SQL y se suma en memoria.
+- `desde ≤ hasta` y `top` entre 1 y 100. Contempla los años con horario de verano en los que la
+  medianoche no existió.
+
 ## Decisiones del cliente React
 
 <!--
