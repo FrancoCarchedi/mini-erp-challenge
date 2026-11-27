@@ -61,6 +61,9 @@ porque tenían tests.)*
 - **Verificación:** `Facturar_SinStockSuficiente_…` y `Facturar_DosVeces_…`. Además, contra la
   API: 8 `POST` simultáneos sobre el mismo presupuesto (entra uno solo) y 6 presupuestos
   compitiendo por 3 unidades (se facturan exactamente 3 y el stock queda en 0).
+- **Corrección posterior:** la suma por artículo se hacía en `int`. Con miles de líneas válidas
+  del mismo artículo desbordaba y facturar respondía 500. Ahora se suma en `long` y se rechaza
+  por falta de stock (hay un test que lo reproduce).
 
 ### 2. La lista no mostraba los presupuestos nuevos (sin test)
 
@@ -118,10 +121,11 @@ porque tenían tests.)*
   corrimiento en Argentina.
 - **Por qué:** SQLite no guarda el `Kind` y EF devuelve `DateTime` como `Unspecified`.
 - **Arreglo:** `UtcDateTimeConverter` como convención global (`ConfigureConventions`), así
-  cubre también las fechas futuras. Es válido porque los datos ya se guardaban en UTC (la API
-  asigna `Fecha` con `DateTime.UtcNow` y no recibe fechas en los requests); no cubre una base
-  editada a mano. Descarté un conversor de JSON: solo corregía la salida y la lógica del
-  backend habría seguido recibiendo `Unspecified`.
+  cubre también las fechas futuras. Es válido porque los datos ya se guardaban en UTC: la API
+  asigna `Fecha` con `DateTime.UtcNow` y ningún request envía un instante (la
+  `fechaVencimiento` que se agregó después es un día sin hora, `DateOnly`, y el conversor no la
+  toca). No cubre una base editada a mano. Descarté un conversor de JSON: solo corregía la
+  salida y la lógica del backend habría seguido recibiendo `Unspecified`.
 - **Verificación:** `FechasUtcTests` y las fechas de los `GET`, que terminan en `Z`.
 
 ## Mejora: baja lógica (soft delete) al eliminar presupuestos
@@ -311,7 +315,7 @@ repo; el recorrido en navegador se hizo con un script descartable.
 
 ### Verificación
 
-- Backend: 64 tests en verde (los 6 originales, sin modificar, y 58 nuevos).
+- Backend: 65 tests en verde (los 6 originales, sin modificar, y 59 nuevos).
 - Cliente: 52 tests en verde; `build` y `lint` sin errores.
 - Por HTTP, sobre una base nueva: los 5 flujos del README, los bugs sin test, duplicar,
   reporte, CORS y concurrencia. No usé la interfaz de Swagger; sí comprobé que publica los
@@ -366,10 +370,12 @@ repo; el recorrido en navegador se hizo con un script descartable.
     comillas sin ejecutar nada.
   - Puso mal el valor esperado de un test de importes grandes (cuenta mal hecha). El test
     falló, se rehízo la cuenta y se confirmó con el mismo caso en el backend, con `decimal`.
+  - Puso un tope por línea y dio por evitados los desbordes, pero la suma de varias líneas del
+    mismo artículo seguía en `int` y facturar podía responder 500. Apareció en la revisión
+    previa a la entrega, al probar datos extremos.
 
 ## Qué haría con más tiempo / qué falta para producción
 
-- **Migraciones de EF** en lugar de `EnsureCreated`, para cambiar el esquema sin borrar datos.
 - **Autenticación y autorización**, y auditoría de quién factura o elimina.
 - **Eliminados:** hoy solo se pueden ver en la base. Faltaría listarlos y restaurarlos (con
   permisos) y guardar quién los eliminó.
@@ -381,7 +387,6 @@ repo; el recorrido en navegador se hizo con un script descartable.
 - **Paginación y filtros** en las listas. Hoy todo se trae completo y el reporte suma en
   memoria.
 - **Estados** `Aprobado` y `Rechazado`: existen, pero no hay flujo que los asigne.
-- **Observabilidad:** logging estructurado, métricas y health checks.
 - **Cliente:** tests de componentes y e2e en el repo, *error boundary* (por ejemplo, si falla
   la descarga de una pantalla), accesibilidad revisada y un diálogo propio en lugar de
   `window.confirm`.

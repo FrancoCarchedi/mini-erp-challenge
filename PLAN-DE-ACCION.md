@@ -1,5 +1,10 @@
 # Plan de acción — Challenge Mini ERP
 
+> **Este es el plan inicial**, escrito antes de implementar, y se conserva como registro del
+> proceso. Hubo cambios posteriores que no refleja, como la baja lógica al eliminar
+> presupuestos y la columna `FechaVencimiento`. **El estado final está documentado en
+> [`NOTES.md`](NOTES.md)**; si difieren, vale `NOTES.md`.
+
 ## Contexto
 
 Backend heredado en .NET 8 + EF Core + SQLite (presupuestos, facturación, artículos, stock), con
