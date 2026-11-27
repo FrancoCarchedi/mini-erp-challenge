@@ -43,6 +43,21 @@ porque tenían tests.)*
 - **Arreglo:** se quitó el filtro.
 - **Verificación:** flujo 1 del README.
 
+### 3. La numeración se repetía después de borrar (sin test)
+
+- **Qué pasaba:** creando el 1 y el 2, borrando el 1 y creando otro, volvía a salir el 2.
+- **Por qué:** el próximo número era `Count() + 1`.
+- **Arreglo:** tabla `Secuencias` (`Nombre`, `UltimoValor`) para presupuestos y facturas. Un
+  número nunca se reutiliza, aunque se borre el último (con `Max + 1` sí se reutilizaría). El
+  incremento es un único `INSERT … ON CONFLICT DO UPDATE … RETURNING`, dentro de la misma
+  transacción que el alta, así que un alta fallida no consume número. Si ya hubiera documentos
+  con un número mayor, la secuencia arranca desde el máximo. Además hay índices **UNIQUE** en
+  `Presupuesto.Numero`, `Factura.Numero` y `Factura.PresupuestoId`.
+- **⚠️ Esquema:** el proyecto usa `EnsureCreated`, que no actualiza una base existente. Si ya
+  tenés un `backend/MiniErp.Api/minierp.db`, borralo (junto con `-shm` y `-wal`) antes de
+  levantar la API.
+- **Verificación:** flujo 3 del README.
+
 ## Decisiones del cliente React
 
 <!--

@@ -12,9 +12,18 @@ public class AppDbContext : DbContext
     public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
     public DbSet<PresupuestoItem> PresupuestoItems => Set<PresupuestoItem>();
     public DbSet<Factura> Facturas => Set<Factura>();
+    public DbSet<Secuencia> Secuencias => Set<Secuencia>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Secuencia>().HasKey(s => s.Nombre);
+
+        // Defensa en la base: ningun numero se repite y un presupuesto no puede
+        // tener dos facturas.
+        modelBuilder.Entity<Presupuesto>().HasIndex(p => p.Numero).IsUnique();
+        modelBuilder.Entity<Factura>().HasIndex(f => f.Numero).IsUnique();
+        modelBuilder.Entity<Factura>().HasIndex(f => f.PresupuestoId).IsUnique();
+
         modelBuilder.Entity<Articulo>().Property(a => a.PrecioUnitario).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Articulo>().Property(a => a.AlicuotaIva).HasColumnType("decimal(5,2)");
 

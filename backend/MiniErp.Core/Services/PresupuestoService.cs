@@ -42,6 +42,9 @@ public class PresupuestoService
             item.AlicuotaIva = articulo.AlicuotaIva;
         }
 
+        // El numero y el alta van juntos: si el guardado falla, el numero no se consume.
+        await using var transaccion = await _db.Database.BeginTransactionAsync();
+
         var presupuesto = new Presupuesto
         {
             Numero = await _numeracion.ProximoNumeroPresupuestoAsync(),
@@ -54,6 +57,7 @@ public class PresupuestoService
 
         _db.Presupuestos.Add(presupuesto);
         await _db.SaveChangesAsync();
+        await transaccion.CommitAsync();
         return presupuesto;
     }
 
