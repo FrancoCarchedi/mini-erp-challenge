@@ -66,6 +66,32 @@ public class PresupuestoService
         return presupuesto;
     }
 
+    /// <summary>
+    /// Clona un presupuesto como uno nuevo: numero y fecha nuevos, en Borrador y con
+    /// el precio y la alicuota actuales de cada articulo. Devuelve null si no existe.
+    /// </summary>
+    public async Task<Presupuesto?> DuplicarAsync(int id)
+    {
+        var original = await _db.Presupuestos
+            .AsNoTracking()
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (original is null) return null;
+
+        // Solo se copia lo que eligio el usuario; CrearAsync toma el resto.
+        var items = original.Items
+            .OrderBy(i => i.Id)
+            .Select(i => new PresupuestoItem
+            {
+                ArticuloId = i.ArticuloId,
+                Cantidad = i.Cantidad,
+                DescuentoPct = i.DescuentoPct
+            })
+            .ToList();
+
+        return await CrearAsync(original.ClienteId, original.ValidezDias, items);
+    }
+
     // Las mismas reglas que los DTOs, para que el servicio no dependa de la API.
     private static void ValidarDatos(int validezDias, List<PresupuestoItem> items)
     {
