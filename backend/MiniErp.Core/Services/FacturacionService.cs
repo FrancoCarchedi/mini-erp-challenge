@@ -19,19 +19,25 @@ public class FacturacionService
 
     public async Task<Factura> FacturarAsync(int presupuestoId)
     {
+        // La transaccion se abre antes de leer: en SQLite toma el lock de escritura
+        // de entrada, asi que dos facturaciones simultaneas no pueden validar contra
+        // el mismo stock ni facturar dos veces el mismo presupuesto.
+        await using var transaccion = await _db.Database.BeginTransactionAsync();
+
         var presupuesto = await _db.Presupuestos
             .Include(p => p.Items)
+                .ThenInclude(i => i.Articulo)
             .FirstOrDefaultAsync(p => p.Id == presupuestoId)
             ?? throw new InvalidOperationException("El presupuesto no existe.");
 
-        var vencimiento = presupuesto.Fecha.AddDays(presupuesto.ValidezDias);
-        if (DateTime.UtcNow > vencimiento)
-            throw new InvalidOperationException("El presupuesto esta vencido y no se puede facturar.");
+        // Primero todas las validaciones; recien despues se modifican datos.
+        await ValidarEstadoAsync(presupuesto);
+        ValidarVigencia(presupuesto);
+        ValidarStock(presupuesto);
 
         foreach (var item in presupuesto.Items)
         {
-            var articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);
-            articulo.StockActual -= item.Cantidad;
+            item.Articulo!.StockActual -= item.Cantidad;
         }
 
         var totales = _presupuestos.CalcularTotales(presupuesto);
@@ -49,6 +55,41 @@ public class FacturacionService
         presupuesto.Estado = EstadoPresupuesto.Facturado;
         _db.Facturas.Add(factura);
         await _db.SaveChangesAsync();
+        await transaccion.CommitAsync();
         return factura;
+    }
+
+    // Borrador y Aprobado se pueden facturar: todo presupuesto nace en Borrador
+    // y la API no tiene un paso de aprobacion.
+    private async Task ValidarEstadoAsync(Presupuesto presupuesto)
+    {
+        if (presupuesto.Estado == EstadoPresupuesto.Facturado ||
+            await _db.Facturas.AnyAsync(f => f.PresupuestoId == presupuesto.Id))
+            throw new InvalidOperationException("El presupuesto ya fue facturado.");
+
+        if (presupuesto.Estado == EstadoPresupuesto.Rechazado)
+            throw new InvalidOperationException("El presupuesto esta rechazado y no se puede facturar.");
+    }
+
+    private static void ValidarVigencia(Presupuesto presupuesto)
+    {
+        // El dia del vencimiento todavia se puede facturar.
+        if (ZonaArgentina.Hoy() > presupuesto.FechaVencimiento)
+            throw new InvalidOperationException("El presupuesto esta vencido y no se puede facturar.");
+    }
+
+    // Un articulo puede venir en varias lineas: el stock se valida contra la suma.
+    private static void ValidarStock(Presupuesto presupuesto)
+    {
+        var faltantes = presupuesto.Items
+            .GroupBy(i => i.ArticuloId)
+            // Se suma en long: muchas lineas validas pueden superar el maximo de int.
+            .Select(g => new { g.First().Articulo, Pedido = g.Sum(i => (long)i.Cantidad) })
+            .Where(x => x.Pedido > x.Articulo!.StockActual)
+            .Select(x => $"{x.Articulo!.Codigo} {x.Articulo.Descripcion} (pedido {x.Pedido}, disponible {x.Articulo.StockActual})")
+            .ToList();
+
+        if (faltantes.Count > 0)
+            throw new InvalidOperationException($"Stock insuficiente: {string.Join("; ", faltantes)}.");
     }
 }

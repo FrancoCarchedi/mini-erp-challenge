@@ -1,0 +1,13 @@
+# Enlace local a .agents/skills que crea la CLI de skills (en Windows Git lo
+# veria como una copia duplicada).
+.claude/
+
+# Entorno local (la plantilla es .env.example)
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+*.tsbuildinfo
+*.log

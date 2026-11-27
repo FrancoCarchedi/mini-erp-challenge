@@ -31,6 +31,13 @@ public class PresupuestosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<PresupuestoDto>> Crear([FromBody] CrearPresupuestoRequest request)
     {
+        // Los DataAnnotations no cubren un elemento nulo dentro de la lista.
+        if (request.Items.Any(i => i is null))
+            return BadRequest(new { error = "La lista de items tiene elementos vacios." });
+
+        if (request.ValidezDias.HasValue == request.FechaVencimiento.HasValue)
+            return BadRequest(new { error = "Hay que informar 'fechaVencimiento' o 'validezDias' (solo uno de los dos)." });
+
         var items = request.Items.Select(i => new PresupuestoItem
         {
             ArticuloId = i.ArticuloId,
@@ -40,8 +47,28 @@ public class PresupuestosController : ControllerBase
 
         try
         {
-            var creado = await _service.CrearAsync(request.ClienteId, request.ValidezDias, items);
+            var creado = request.FechaVencimiento is { } fechaVencimiento
+                ? await _service.CrearAsync(request.ClienteId, fechaVencimiento, items)
+                : await _service.CrearAsync(request.ClienteId, request.ValidezDias!.Value, items);
             var completo = await _service.ObtenerAsync(creado.Id);
+            return Ok(MapToDto(completo!));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    // POST /api/presupuestos/5/duplicar
+    [HttpPost("{id:int}/duplicar")]
+    public async Task<ActionResult<PresupuestoDto>> Duplicar(int id)
+    {
+        try
+        {
+            var copia = await _service.DuplicarAsync(id);
+            if (copia is null) return NotFound();
+
+            var completo = await _service.ObtenerAsync(copia.Id);
             return Ok(MapToDto(completo!));
         }
         catch (InvalidOperationException ex)
@@ -53,8 +80,14 @@ public class PresupuestosController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        await _service.EliminarAsync(id);
-        return NoContent();
+        try
+        {
+            return await _service.EliminarAsync(id) ? NoContent() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     private PresupuestoDto MapToDto(Presupuesto p)
@@ -69,7 +102,7 @@ public class PresupuestosController : ControllerBase
             i.PrecioUnitario,
             i.DescuentoPct,
             i.AlicuotaIva,
-            i.Cantidad * i.PrecioUnitario * (1 - i.DescuentoPct / 100m)
+            CalculoLinea.Subtotal(i)
         )).ToList();
 
         return new PresupuestoDto(
@@ -80,6 +113,7 @@ public class PresupuestosController : ControllerBase
             p.Cliente?.RazonSocial ?? "",
             p.Estado.ToString(),
             p.ValidezDias,
+            p.FechaVencimiento,
             items,
             totales.Subtotal,
             totales.Iva,

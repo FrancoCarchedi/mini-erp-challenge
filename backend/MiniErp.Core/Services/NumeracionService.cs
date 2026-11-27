@@ -3,6 +3,10 @@ using MiniErp.Core.Data;
 
 namespace MiniErp.Core.Services;
 
+/// <summary>
+/// Entrega numeros secuenciales. Hay que llamarlo dentro de la misma transaccion
+/// que guarda el documento: si el alta falla, el numero no se consume.
+/// </summary>
 public class NumeracionService
 {
     private readonly AppDbContext _db;
@@ -11,14 +15,30 @@ public class NumeracionService
 
     public async Task<int> ProximoNumeroPresupuestoAsync()
     {
-        // El proximo numero se calcula a partir de la cantidad de presupuestos existentes.
-        var cantidad = await _db.Presupuestos.CountAsync();
-        return cantidad + 1;
+        // Los eliminados tambien cuentan: su numero sigue ocupado.
+        var maximoUsado = await _db.Presupuestos.IgnoreQueryFilters().MaxAsync(p => (int?)p.Numero) ?? 0;
+        return await AvanzarAsync("Presupuesto", maximoUsado);
     }
 
     public async Task<int> ProximoNumeroFacturaAsync()
     {
-        var max = await _db.Facturas.MaxAsync(f => (int?)f.Numero) ?? 0;
-        return max + 1;
+        var maximoUsado = await _db.Facturas.MaxAsync(f => (int?)f.Numero) ?? 0;
+        return await AvanzarAsync("Factura", maximoUsado);
+    }
+
+    // Una sola sentencia crea o incrementa la secuencia, sin un "leer y despues
+    // escribir" en memoria. El maximo usado cubre documentos que ya existan con un
+    // numero mayor al de la secuencia (por ejemplo, insertados por fuera).
+    private async Task<int> AvanzarAsync(string nombre, int maximoUsado)
+    {
+        var valores = await _db.Database
+            .SqlQuery<int>($"""
+                INSERT INTO Secuencias (Nombre, UltimoValor) VALUES ({nombre}, {maximoUsado} + 1)
+                ON CONFLICT (Nombre) DO UPDATE SET UltimoValor = MAX(UltimoValor, {maximoUsado}) + 1
+                RETURNING UltimoValor AS Value
+                """)
+            .ToListAsync();
+
+        return valores.Single();
     }
 }
