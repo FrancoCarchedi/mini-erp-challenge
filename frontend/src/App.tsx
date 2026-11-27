@@ -5,6 +5,7 @@ import { Presupuestos } from './pages/Presupuestos'
 
 // La grilla es la pantalla de entrada; el resto se descarga cuando se usa.
 const PresupuestoDetalle = lazy(() => import('./pages/PresupuestoDetalle'))
+const NuevoPresupuesto = lazy(() => import('./pages/NuevoPresupuesto'))
 
 const SECCIONES = [{ ruta: '/', titulo: 'Presupuestos' }]
 
@@ -30,6 +31,7 @@ export function App() {
         <Suspense fallback={<Cargando />}>
           <Routes>
             <Route path="/" element={<Presupuestos />} />
+            <Route path="/presupuestos/nuevo" element={<NuevoPresupuesto />} />
             <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
             <Route path="*" element={<p>La página no existe.</p>} />
           </Routes>

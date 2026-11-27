@@ -10,6 +10,8 @@ import type { Presupuesto } from '../types/api'
 
 type Aviso = { tipo: 'exito'; contenido: ReactNode } | { tipo: 'error'; titulo: string; error: unknown }
 
+const precargarAlta = () => void import('./NuevoPresupuesto')
+
 export function Presupuestos() {
   const { data: presupuestos, isPending, error } = usePresupuestos()
   const eliminar = useEliminarPresupuesto()
@@ -28,7 +30,18 @@ export function Presupuestos() {
 
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Presupuestos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Presupuestos</h1>
+        {/* Al apuntar el enlace se empieza a descargar la pantalla de alta. */}
+        <Link
+          className="btn btn-primario"
+          to="/presupuestos/nuevo"
+          onMouseEnter={precargarAlta}
+          onFocus={precargarAlta}
+        >
+          Nuevo presupuesto
+        </Link>
+      </div>
 
       {aviso === null ? null : aviso.tipo === 'error' ? (
         <ErrorDeApi titulo={aviso.titulo} error={aviso.error} />
