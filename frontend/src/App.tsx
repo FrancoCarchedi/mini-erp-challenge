@@ -8,11 +8,14 @@ const PresupuestoDetalle = lazy(() => import('./pages/PresupuestoDetalle'))
 const NuevoPresupuesto = lazy(() => import('./pages/NuevoPresupuesto'))
 const cargarFacturas = () => import('./pages/Facturas')
 const Facturas = lazy(cargarFacturas)
+const cargarReporte = () => import('./pages/Reporte')
+const Reporte = lazy(cargarReporte)
 
 // `precargar` empieza a descargar la pantalla al apuntar el enlace.
 const SECCIONES = [
   { ruta: '/', titulo: 'Presupuestos' },
   { ruta: '/facturas', titulo: 'Facturas', precargar: cargarFacturas },
+  { ruta: '/reporte', titulo: 'Reporte', precargar: cargarReporte },
 ]
 
 const claseDeEnlace = ({ isActive }: { isActive: boolean }) =>
@@ -47,6 +50,7 @@ export function App() {
             <Route path="/presupuestos/nuevo" element={<NuevoPresupuesto />} />
             <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
             <Route path="/facturas" element={<Facturas />} />
+            <Route path="/reporte" element={<Reporte />} />
             <Route path="*" element={<p>La página no existe.</p>} />
           </Routes>
         </Suspense>
